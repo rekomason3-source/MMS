@@ -38,6 +38,26 @@ Sprite.define("sparkbit", {
   l = C.hex("d6e4ff"), s = C.hex("2a62e0"), S = C.hex("4f8cff"),
 })
 
+local K = require("src.data.content")
+local variant_cache = {}
+
+-- Bakes (and caches) the sprite for an appearance: form + scarf + crest color.
+function Sparkbit.sprite_for(app)
+  if not app then return Sprite.get("sparkbit") end
+  local key = app.form .. ":" .. app.scarf .. ":" .. app.crest
+  local img = variant_cache[key]
+  if img then return img end
+  local scarf = K.SCARVES[1]
+  for _, s in ipairs(K.SCARVES) do if s.id == app.scarf then scarf = s end end
+  local crest = app.crest ~= "neutral" and C.hex(K.TYPE_COLOR[app.crest]) or C.colors.cyan
+  img = Sprite.bake(K.FORM_SPRITES[app.form] or K.FORM_SPRITES.sparkbit, {
+    o = C.colors.outline, w = C.colors.white, c = crest, v = C.colors.violet, a = C.colors.amber,
+    l = C.hex("d6e4ff"), s = C.hex(scarf.dark), S = C.hex(scarf.light),
+  })
+  variant_cache[key] = img
+  return img
+end
+
 Sparkbit.STATES = {
   idle = true, move = true, curious = true, happy = true, pet = true,
   sorting = true, building = true, focus = true, hurt = true,
@@ -61,7 +81,14 @@ function Sparkbit.new(x, y)
   self.emote, self.emote_t = nil, 0
   self.max_energy = C.player.max_energy
   self.energy = self.max_energy
+  self.scale = S
+  self.app = nil
   return self
+end
+
+function Sparkbit:set_appearance(app)
+  self.app = app
+  self.img = Sparkbit.sprite_for(app)
 end
 
 function Sparkbit:set_state(s, dur)
@@ -157,7 +184,7 @@ end
 function Sparkbit:draw_face(eyes, look)
   local lg = love.graphics
   local dark = C.colors.outline
-  local q = 1 / S -- one screen pixel
+  local q = 1 / ((self and self.scale) or S) -- one screen pixel
   for _, bx in ipairs({ 5, 10 }) do
     local x, y = bx + (look or 0) * 2 * q, 6
     if eyes == "open" or eyes == "wide" then
@@ -240,6 +267,10 @@ function Sparkbit:pose()
   elseif st == "idle" and self.idle_t > 8 then
     rot = math.sin(self.idle_t * 0.6) * 0.14
   end
+  if self.app and self.app.hungry and (st == "idle" or st == "move") then
+    hover = -1 - math.sin(t * 1.5)
+    sy = sy * 0.95
+  end
   return hover, sx, sy, rot, ox
 end
 
@@ -247,12 +278,14 @@ function Sparkbit:draw_aura(cx, cy)
   local st = self.state
   local busy = st == "sorting" or st == "focus" or st == "celebrate"
   local n = st == "sleep" and 1 or (busy and 6 or 3)
+  if self.app and not busy and st ~= "sleep" then n = n + math.min(3, math.floor((self.app.level - 1) / 2)) end
   local spd = busy and 4 or 1.2
   for i = 1, n do
     local a = self.t * spd + i * (math.pi * 2 / n)
     local r = 26 + math.sin(self.t * 2 + i) * 3
     local px, py = cx + math.cos(a) * r, cy + math.sin(a) * r * 0.55
-    local col = (i % 2 == 0) and C.colors.cyan or C.colors.violet
+    local crest = self.app and self.app.crest ~= "neutral" and C.hex(K.TYPE_COLOR[self.app.crest]) or C.colors.violet
+    local col = (i % 2 == 0) and C.colors.cyan or crest
     UI.setColor(col, 0.35 + 0.35 * math.sin(self.t * 3 + i))
     love.graphics.rectangle("fill", math.floor(px), math.floor(py), 3, 3)
   end
@@ -273,19 +306,40 @@ function Sparkbit:draw()
   lg.push()
   lg.translate(math.floor(self.x + ox + 0.5), math.floor(self.y + hover + 0.5))
   lg.rotate(rot)
-  lg.scale(S * self.facing * sx, S * sy)
+  local sc = self.scale
+  lg.scale(sc * self.facing * sx, sc * sy)
   lg.translate(-8, -16)
   local lb = math.sin(self.t * 4) * 0.8
   UI.setColor(C.colors.cyan)
   lg.rectangle("fill", 0, 10 + lb, 2, 2)
   lg.rectangle("fill", 14, 10 - lb, 2, 2)
   lg.setColor(1, 1, 1, 1)
-  lg.draw(Sprite.get("sparkbit"), 0, 0)
+  lg.draw(self.img or Sprite.get("sparkbit"), 0, 0)
   self:draw_face(eyes_for(self), self.look)
+  self:draw_marks()
+  if self.overclock then
+    UI.setColor(C.colors.white, 0.25 + 0.2 * math.sin(self.t * 12))
+    lg.draw(self.img or Sprite.get("sparkbit"), 0, 0)
+  end
   lg.pop()
 
   self:draw_work_fx(cy)
   self:draw_emote(self.y + hover - 66)
+end
+
+-- Data marks: absorbed data literally shows on the body.
+function Sparkbit:draw_marks()
+  local app = self.app
+  if not app or app.marks == 0 or app.crest == "neutral" then return end
+  local lg = love.graphics
+  UI.setColor(C.hex(K.TYPE_COLOR[app.crest]))
+  lg.rectangle("fill", 2, 7, 1, 2)
+  lg.rectangle("fill", 13, 7, 1, 2)
+  if app.marks >= 2 then
+    lg.rectangle("fill", 6, 4, 1, 1)
+    lg.rectangle("fill", 9, 4, 1, 1)
+    lg.rectangle("fill", 7, 13, 2, 1)
+  end
 end
 
 function Sparkbit:draw_work_fx(cy)
@@ -318,6 +372,11 @@ function Sparkbit:draw_emote(y)
   UI.setColor(C.colors.outline, pop)
   if self.emote == "heart" then
     UI.heart(x - 7, y + 5, 2, C.colors.pink)
+  elseif self.emote == "hungry" then
+    UI.setColor(C.colors.amber, pop)
+    lg.rectangle("fill", x - 6, y + 5, 12, 12, 2, 2)
+    UI.setColor(C.colors.white, pop)
+    lg.circle("fill", x + 6, y + 6, 4)
   elseif self.emote == "z" then
     UI.text("z", x - w / 2, y + 1, C.colors.violet, UI.font, "center", w)
   else
@@ -326,14 +385,14 @@ function Sparkbit:draw_emote(y)
 end
 
 -- Small static portrait for HUD / menus.
-function Sparkbit.draw_portrait(x, y, scale, eyes)
+function Sparkbit.draw_portrait(x, y, scale, eyes, app)
   local lg = love.graphics
   lg.push()
   lg.translate(x, y)
   lg.scale(scale, scale)
   lg.setColor(1, 1, 1, 1)
-  lg.draw(Sprite.get("sparkbit"), 0, 0)
-  Sparkbit.draw_face(nil, eyes or "open", 0)
+  lg.draw(Sparkbit.sprite_for(app), 0, 0)
+  Sparkbit.draw_face({ scale = scale }, eyes or "open", 0)
   lg.pop()
 end
 

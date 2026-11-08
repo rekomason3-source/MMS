@@ -110,6 +110,12 @@ function Game.update(dt)
   local top = SM.top()
   if top and top.gameplay then
     Game.data.player.playtime = (Game.data.player.playtime or 0) + dt
+    -- care begins once the Upload Station (food) exists
+    if Game.data.progress.loop_broken then
+      local ev = require("src.systems.growth").tick_care(Game.data, dt)
+      if ev == "hungry" then Game.toast("Sparkbit is hungry. Feed it at the Upload Station.", C.colors.amber)
+      elseif ev == "starving" then Game.toast("Sparkbit is starving! (care mistake)", C.colors.glitch) end
+    end
     Game.autosave_t = Game.autosave_t + dt
     if Game.autosave_t >= C.timing.autosave then
       Game.autosave_t = 0
@@ -144,6 +150,7 @@ local function draw_scene()
 end
 
 function Game.draw()
+  Game.frames_drawn = (Game.frames_drawn or 0) + 1
   local w, h = love.graphics.getDimensions()
   if w == C.WIDTH and h == C.HEIGHT then
     -- Native 640x480 (R36S): draw straight to the backbuffer, no extra blit.

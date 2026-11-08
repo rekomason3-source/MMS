@@ -38,12 +38,25 @@ function Save.new_default()
     commander = { recall = 0, clarity = 0, focus = 0, execution = 0, mastery = 0 },
     companion = {
       species = "Sparkbit", name = "Sparkbit", stage = "Sparkbit",
-      level = 1, xp = 0, energy = 5, max_energy = 5,
+      level = 1, xp = 0, energy = 5, max_energy = 5, hp = 60,
     },
+    -- absorbed data: lifetime shapes Sparkbit (never spent); bank is spent on uploads
+    data_core = {
+      lifetime = { build = 0, pulse = 0, archive = 0 },
+      bank = { build = 0, pulse = 0, archive = 0 },
+    },
+    care = { hunger = 80, mood = 70, score = 0, mistakes = 0, starving = false, fed = 0 },
+    aspects = { owned = {}, equipped = {}, scarf = "blue" },
+    cards = { heal = 2, energy = 0, boost = 0, shield = 0 },
+    bitdex = { seen = {}, defeated = {} },
+    residents = {},
+    expedition = { fetch_ready = false, runs = 0 },
     traits = traits,
     skills = {
       flowsort = { unlocked = true, level = 1, uses = 0 },
       curiosity = { unlocked = true, passive = true },
+      learned = { flowsort = true },
+      equipped = { "flowsort" },
     },
     memories = {},
     evolution = { offered = {}, chosen = "", flags = {} },

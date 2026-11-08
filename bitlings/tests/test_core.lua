@@ -146,5 +146,151 @@ test("missing migration is an error, not a crash", function()
   eq(d, nil); eq(kind, "corrupt")
 end)
 
+
+-- growth / content -----------------------------------------------------------
+local K = require("src.data.content")
+local Growth = require("src.systems.growth")
+
+test("every sprite grid is rectangular", function()
+  local function check(name, rows)
+    local w = #rows[1]
+    for i, r in ipairs(rows) do
+      if #r ~= w then error(name .. " row " .. i .. " width " .. #r .. " ~= " .. w) end
+    end
+  end
+  for id, sp in pairs(K.SPRITES) do
+    check(id, sp.rows)
+    for _, r in ipairs(sp.rows) do
+      for ch in r:gmatch("[^%.]") do
+        if not sp.pal[ch] then error(id .. " uses unknown palette key " .. ch) end
+      end
+    end
+  end
+  for id, rows in pairs(K.FORM_SPRITES) do check(id, rows); eq(#rows, 16); eq(#rows[1], 16) end
+end)
+
+test("content references are valid", function()
+  for id, E in pairs(K.ENEMIES) do
+    assert(K.SPRITES[E.sprite], id .. " sprite")
+    assert(K.TYPE_NAME[E.type], id .. " type")
+    if E.card then assert(K.CARDS[E.card], id .. " card") end
+    if E.aspect then assert(K.ASPECTS[E.aspect], id .. " aspect") end
+  end
+  for _, id in ipairs(K.SKILL_ORDER) do assert(K.SKILLS[id], "skill " .. id) end
+  for _, f in pairs(K.FORMS) do if f.signature then assert(K.SKILLS[f.signature]) end end
+end)
+
+test("type triangle", function()
+  eq(Growth.type_mult("build", "pulse"), 1.5)
+  eq(Growth.type_mult("pulse", "archive"), 1.5)
+  eq(Growth.type_mult("archive", "build"), 1.5)
+  eq(Growth.type_mult("pulse", "build"), 0.67)
+  eq(Growth.type_mult("neutral", "build"), 1)
+end)
+
+test("absorbed data raises stats and drives appearance", function()
+  local d = Save.new_default()
+  local s0 = Growth.stats(d)
+  Growth.absorb(d, { build = 20 })
+  local s1 = Growth.stats(d)
+  assert(s1.def > s0.def and s1.hp_max > s0.hp_max, "build data -> def/hp")
+  eq(d.data_core.bank.build, 20)
+  local app = Growth.appearance(d)
+  eq(app.crest, "build"); eq(app.marks, 1)
+end)
+
+test("data magnet aspect boosts absorb", function()
+  local d = Save.new_default()
+  d.aspects.owned.data_magnet = true
+  assert(Growth.toggle_aspect(d, "data_magnet"))
+  local a = Growth.absorb(d, { pulse = 8 })
+  eq(a.pulse, 10)
+end)
+
+test("upload skill spends bank, not lifetime", function()
+  local d = Save.new_default()
+  Growth.absorb(d, { pulse = 7 })
+  local ok = Growth.learn(d, "pulse_dash")
+  assert(ok)
+  eq(d.data_core.bank.pulse, 1); eq(d.data_core.lifetime.pulse, 7)
+  assert(Growth.is_equipped(d, "pulse_dash"))
+  local ok2 = Growth.learn(d, "overdrive")
+  eq(ok2, false)
+end)
+
+test("loadout keeps 1..4 skills", function()
+  local d = Save.new_default()
+  local ok = Growth.toggle_equip(d, "flowsort")
+  eq(ok, false)
+  for _, id in ipairs({ "patch_bolt", "pulse_dash", "recall_beam", "firewall" }) do d.skills.learned[id] = true end
+  assert(Growth.toggle_equip(d, "patch_bolt")); assert(Growth.toggle_equip(d, "pulse_dash")); assert(Growth.toggle_equip(d, "recall_beam"))
+  eq(Growth.toggle_equip(d, "firewall"), false)
+end)
+
+test("care: hunger drains, starving is one mistake, feeding fixes", function()
+  local d = Save.new_default()
+  d.care.hunger = 1
+  eq(Growth.tick_care(d, 24), "starving")
+  eq(d.care.mistakes, 1)
+  eq(Growth.tick_care(d, 24), nil)
+  eq(d.care.mistakes, 1)
+  d.settlement.resources.bits = 10
+  assert(Growth.feed(d, "snack"))
+  eq(d.care.starving, false); eq(d.care.score, 1); eq(d.settlement.resources.bits, 5)
+end)
+
+test("treats steer evolution direction", function()
+  local d = Save.new_default()
+  d.settlement.resources.bits = 100
+  d.care.hunger = 10
+  Growth.feed(d, "treat_archive")
+  local dom = Growth.dominant(d)
+  eq(dom, "archive")
+end)
+
+test("evolution gates on level, data, leaning, care, mood", function()
+  local d = Save.new_default()
+  local st = Growth.evolution_status(d)
+  eq(st.ready, false)
+  d.companion.level = 5
+  Growth.absorb(d, { pulse = 30 })
+  d.care.score = 8
+  d.care.mood = 60
+  st = Growth.evolution_status(d)
+  eq(st.ready, true); eq(st.form, "pulsebit")
+  d.care.mistakes = 1 -- neglect blocks it
+  eq(Growth.evolution_status(d).ready, false)
+  d.care.mistakes = 0
+  assert(Growth.evolve(d))
+  eq(d.companion.stage, "pulsebit"); eq(d.companion.name, "Pulsebit")
+  assert(Growth.is_learned(d, "tempo_rush"))
+  local s = Growth.stats(d)
+  eq(s.type, "pulse")
+  eq(Growth.evolution_status(d).ready, false)
+end)
+
+test("xp levels up and counts mastery", function()
+  local d = Save.new_default()
+  eq(Growth.add_xp(d, 250), 1)
+  eq(d.companion.level, 2); eq(d.companion.xp, 150)
+  eq(Growth.add_xp(d, 50), 1)
+  eq(d.commander.mastery, 2)
+end)
+
+test("damage respects type and is at least 1", function()
+  local strong = Growth.damage(10, 10, 10, 1.5, 0.5)
+  local plain = Growth.damage(10, 10, 10, 1, 0.5)
+  assert(strong > plain)
+  eq(Growth.damage(1, 1, 999, 0.67, 0), 1)
+end)
+
+test("old v1 saves gain growth fields", function()
+  Save.fs = memfs()
+  Save.fs.files[Save.FILE] = '{"save_version":1,"companion":{"level":3,"xp":5},"skills":{"flowsort":{"unlocked":true}}}'
+  local d = Save.load()
+  eq(d.data_core.lifetime.pulse, 0); eq(d.care.hunger, 80); eq(d.skills.equipped[1], "flowsort")
+  eq(d.aspects.scarf, "blue")
+end)
+
 print(string.format("\n%d passed, %d failed", passed, failed))
 os.exit(failed == 0 and 0 or 1)

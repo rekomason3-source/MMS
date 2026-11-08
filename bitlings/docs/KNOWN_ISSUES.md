@@ -1,4 +1,4 @@
-# Known Issues & Unverified Assumptions — V0.1
+# Known Issues & Unverified Assumptions — V0.2
 
 ## Not yet verified on real hardware (top priority)
 
@@ -10,14 +10,25 @@
 | 4 | **Performance on Mali-G31.** CPU cost measured tiny; GPU fill rate unknown | Low | Perf overlay (R3), see `PERFORMANCE.md` |
 | 5 | **Default font readability on a 3.5" screen.** Smallest text is 13 px | Low | Visual check. Bump `UI.font_small` to 14–15 if needed |
 
-## Gameplay limitations (by design for V0.1)
+## V0.2: balance not yet human-tested
+
+| Item | Status |
+|---|---|
+| Battle difficulty | The bot wins every fight with **perfect** Sync/Brace timing (Corruptor beaten at Lv 3). Real players will miss timings; the Corruptor may need a few tries. Tune `hp`/`atk` in `src/data/content.lua` |
+| Sync window | 75 ms base (110 ms with Sync Lens). Brace window 220 ms (300 ms). May feel tight on a handheld; widen in `battle.lua` if needed |
+| Evolution pacing | Gate is Level 3 so evolving lands right after Chapter 1. Care quality 8 needs ~8 good-care acts (feed when hungry, pet, rest). Verify this feels earned, not grindy |
+| Hunger rate | Full → empty in ~20 min of play. Only ticks after the Upload Station exists |
+| Placeholder art | Enemy, resident and evolved-form sprites are 12–16 px grid placeholders |
+
+## Gameplay limitations (by design)
 
 - Loop seal progress isn't saved mid-encounter. Quitting during the Loop restarts the encounter (the fragments, terminal and FlowSort stay done).
 - Sparkbit's position isn't saved. Continuing places Sparkbit beside the sleep pad.
 - No music, only procedural UI sounds.
-- One room, one Glitch type, one improvement choice. Per the brief: **no expansion until this loop runs on device.**
+- Expedition progress isn't saved mid-run: quitting in Signals restarts the run (rewards, residents and boss kill are saved immediately).
+- Glitches respawn on each new expedition (from the Lounge), so players can farm data on purpose.
+- One evolution stage. Second-stage forms are a design question (see the growth design doc §10).
 - Commander stats only track `mastery` (incremented on level up). The rest are reserved.
-- `evolution` is in the save schema but nothing offers an evolution yet.
 
 ## Technical notes
 

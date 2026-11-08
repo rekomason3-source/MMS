@@ -22,11 +22,29 @@ Controller-first. Every action is an abstract **action** (`src/input/input.lua`)
 | Input | Channel |
 |---|---|
 | Left | BUILD (amber square) |
-| Up (or Down) | KNOWLEDGE (violet diamond) |
-| Right | FOCUS (cyan triangle) |
+| Up (or Down) | ARCHIVE (violet diamond) |
+| Right | PULSE (cyan triangle) |
 | B | Discard NOISE (static packet) |
 
-Sort 9 of 12 to pass. All 12 = *Perfect Flow* (+10 XP, extra Efficiency).
+Sort 9 of 12 to pass. All 12 = *Perfect Flow* (+10 XP, extra Efficiency). Each correctly sorted packet is absorbed as 1 data of its type. This is also where the type triangle is taught: Build beats Pulse, Pulse beats Archive, Archive beats Build.
+
+## Battle
+
+| Input | Action |
+|---|---|
+| Up / Down + A | Choose Strike / Skills / Patch / Guard (/ OVERCLOCK when full) |
+| **A on each closing ring** | Sync Strike: chain up to 4 hits |
+| **A on the "!" flash** (enemy turn) | Brace: halve damage. Too early = locked out |
+| B | Back out of Skills / Patch lists |
+
+## Upload Station (terminal in the Lounge)
+
+| Input | Action |
+|---|---|
+| L1 / R1 (or Left / Right) | Switch tab: STATUS · SKILLS · ASPECTS · CARE · BITDEX |
+| Up / Down | Select |
+| A | Upload / equip skill · buy / install aspect · change scarf · feed · buy card · Evolve |
+| B | Back to the Lounge (saves) |
 
 ## Menus
 

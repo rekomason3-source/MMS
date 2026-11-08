@@ -1,6 +1,22 @@
 # Bitlings: First Spark — V0.1 (R36S)
 
 > **Milestone:** make Sparkbit wake up on the R36S and feel alive.
+>
+> **V0.2 direction:** *raise Sparkbit, and it becomes what you feed it*: the data it absorbs, the care you give, the skills you upload in the Lounge. Inspired at the mechanic level by Digimon Tamers, Digimon World 1, Pokémon and Legend of Dragoon. Full design: [`docs/design/BITLINGS_GROWTH_AND_BATTLE.md`](docs/design/BITLINGS_GROWTH_AND_BATTLE.md).
+
+## What's in V0.2
+
+| System | Summary |
+|---|---|
+| **Data Absorb** | Every won battle (and FlowSort) feeds Build / Pulse / Archive data into Sparkbit. Lifetime data shapes stats, looks and evolution. Banked data buys skills |
+| **Turn-based battles** | Sync Strike timing chains, Brace on the enemy's flash, Guard, Patch Cards (free action), Overclock form, type triangle |
+| **Upload Station** | The repaired terminal. Upload and equip skills (4), install aspects (2), scarf color, feed, buy cards, Bitdex, **Evolve** |
+| **Care** | Hunger, mood and care quality. Neglect delays evolution (nothing dies) |
+| **Evolution** | Hackbit / Pulsebit / Archivebit, decided by dominant data + traits, gated on care |
+| **Visible growth** | Crest color, data marks, aura, scarf and form sprite all change with play |
+| **Chapter 1: Signals** | 3 screens, 6 Glitch types including a boss, hidden caches, 2 rescuable residents (Barkbit, Purrbit) |
+
+V0.1's prologue is intact. The Loop Glitch now ends in the battle tutorial.
 
 A native LÖVE 11.5 build of the **First Spark** prologue for the R36S handheld (640×480, controller-only, offline), packaged for PortMaster. The design source of truth is in [`docs/design/`](docs/design/); the build brief is [`docs/design/CODEX_BUILD_BRIEF.md`](docs/design/CODEX_BUILD_BRIEF.md).
 
@@ -8,6 +24,8 @@ A native LÖVE 11.5 build of the **First Spark** prologue for the R36S handheld 
 |---|---|
 | ![Title](docs/screenshots/title.png) | ![Loop Glitch](docs/screenshots/loop.png) |
 | ![FlowSort](docs/screenshots/flowsort.png) | ![End card](docs/screenshots/endcard.png) |
+| ![Battle](docs/screenshots/battle.png) | ![Upload Station](docs/screenshots/station.png) |
+| ![Signals](docs/screenshots/signals.png) | ![Evolution](docs/screenshots/evolution.png) |
 
 *Captured by the automated playthrough at native 640×480.*
 
@@ -61,8 +79,8 @@ love dist/bitlings.love
 
 | Layer | What runs | Result |
 |---|---|---|
-| Unit (`tests/test_core.lua`, LuaJIT) | JSON, collision, tunneling bound, save write/backup/migrate/newer-guard/corrupt-fallback | 17/17 pass |
-| End-to-end (`src/dev/autotest.lua`, real LÖVE 11.5) | Boots the game and plays the **entire prologue** with virtual controller input, asserting state and on-disk save, plus pause, perf overlay, A/B swap, migrations and title Continue, and the 2× scaled desktop window. Captures 23 screenshots | 54/54 checks pass |
+| Unit (`tests/test_core.lua`, LuaJIT) | JSON, collision, save system, growth model (stats, absorb, care, uploads, loadout, evolution gates), type triangle, sprite-grid and content validation | 30/30 pass |
+| End-to-end (`src/dev/autotest.lua`, real LÖVE 11.5) | A bot plays the **prologue + all of Chapter 1**: 8 battles won with real Sync/Brace timing, Upload Station on every tab, befriend + rescue, Barkbit's fetch, evolution to Pulsebit, plus save, pause, A/B swap, migrations and scaled window. Captures 39 screenshots | 83/83 checks pass |
 
 ## Docs
 
@@ -85,10 +103,11 @@ bitlings/
 │       ├── core/          # game context, state stack, collision, json, util, sfx
 │       ├── input/         # action-based input abstraction
 │       ├── entities/      # sparkbit, sprite system, fragment, terminal, gateway, loop_glitch
-│       ├── states/        # boot, lounge, flowsort, choice, pause, endcard
+│       ├── states/        # boot, lounge, flowsort, battle, station, field, evolution, choice, pause, endcard
+│       ├── systems/       # growth model (data, care, uploads, evolution) — pure, unit-tested
 │       ├── ui/            # ui kit, hud, dialog, perf overlay
 │       ├── save/          # versioned Bitcore save
-│       ├── data/          # tuning config + room layout
+│       ├── data/          # tuning config, room layout, content (skills/enemies/forms), regions
 │       └── dev/           # autotest harness (env-gated)
 ├── portmaster/            # Bitlings.sh + port.json + gameinfo.xml
 ├── tools/                 # build.sh, test.sh

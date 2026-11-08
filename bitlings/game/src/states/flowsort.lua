@@ -21,12 +21,12 @@ FlowSort.gameplay = true
 
 FlowSort.CHANNELS = {
   build = { label = "BUILD", x = 150, color = C.colors.amber, shape = "square", action = "left" },
-  knowledge = { label = "KNOWLEDGE", x = 320, color = C.colors.violet, shape = "diamond", action = "up" },
-  focus = { label = "FOCUS", x = 490, color = C.colors.cyan, shape = "triangle", action = "right" },
+  archive = { label = "ARCHIVE", x = 320, color = C.colors.violet, shape = "diamond", action = "up" },
+  pulse = { label = "PULSE", x = 490, color = C.colors.cyan, shape = "triangle", action = "right" },
 }
 FlowSort.SEQUENCE = {
-  "build", "knowledge", "focus", "focus", "build", "noise",
-  "knowledge", "build", "focus", "noise", "knowledge", "focus",
+  "build", "archive", "pulse", "pulse", "build", "noise",
+  "archive", "build", "pulse", "noise", "archive", "pulse",
 }
 FlowSort.NEED = 9
 FlowSort.TOP, FlowSort.BOTTOM = 112, 330
@@ -45,6 +45,7 @@ function FlowSort:reset()
   self.idx = 0
   self.packet = nil
   self.score, self.wrong, self.misses = 0, 0, 0
+  self.sorted = {}
   self.gap = 0
   self.flash = {}
   self.shake = 0
@@ -76,6 +77,7 @@ function FlowSort:resolve(choice)
   p.fly = { x0 = p.x, y0 = p.y, x1 = tx, y1 = ty, t = 0 }
   if correct then
     self.score = self.score + 1
+    if p.kind ~= "noise" then self.sorted[p.kind] = (self.sorted[p.kind] or 0) + 1 end
     if FlowSort.CHANNELS[choice] then self.flash[choice] = 0.35 end
     self.spark:set_state("happy")
     self.feedback = { text = p.kind == "noise" and "Noise filtered" or "Sorted", color = C.colors.green, t = 0.6 }
@@ -100,6 +102,7 @@ function FlowSort:finish()
     wrong = self.wrong,
     misses = self.misses,
     perfect = self.score == #FlowSort.SEQUENCE,
+    sorted = self.sorted,
   }
   self.spark:set_state(success and "celebrate" or "hurt")
   Sfx.play(success and "level" or "error")
@@ -161,8 +164,8 @@ function FlowSort:update(dt)
       p.t = p.t + dt
       p.y = FlowSort.TOP + (FlowSort.BOTTOM - FlowSort.TOP) * (p.t / p.fall)
       if Input.pressed("left") then self:resolve("build")
-      elseif Input.pressed("up") or Input.pressed("down") then self:resolve("knowledge")
-      elseif Input.pressed("right") then self:resolve("focus")
+      elseif Input.pressed("up") or Input.pressed("down") then self:resolve("archive")
+      elseif Input.pressed("right") then self:resolve("pulse")
       elseif Input.pressed("cancel") then self:resolve("discard")
       elseif p.t >= p.fall then self:resolve("miss") end
     end
@@ -266,7 +269,8 @@ function FlowSort:draw()
     UI.panel(80, 110, 480, 250, C.colors.cyan)
     UI.text("FLOWSORT", 80, 126, C.colors.cyan, UI.font_big, "center", 480)
     UI.text("Sort each data packet into its channel before it hits the floor.", 104, 166, C.colors.text, UI.font, "center", 432)
-    UI.text("LEFT  Build      UP  Knowledge      RIGHT  Focus", 80, 226, C.colors.amber, UI.font_small, "center", 480)
+    UI.text("LEFT  Build      UP  Archive      RIGHT  Pulse", 80, 226, C.colors.amber, UI.font_small, "center", 480)
+    UI.text("Build beats Pulse. Pulse beats Archive. Archive beats Build.", 80, 202, C.colors.cyan, UI.font_small, "center", 480)
     UI.text("Static NOISE packets must be discarded with B.", 80, 250, C.colors.text, UI.font_small, "center", 480)
     UI.text(string.format("Sort %d of %d to stabilize the terminal.", FlowSort.NEED, #FlowSort.SEQUENCE), 80, 274, C.colors.text, UI.font_small, "center", 480)
     UI.prompts({ { "confirm", "Start" }, { "cancel", "Leave" } }, 540, 324, true)

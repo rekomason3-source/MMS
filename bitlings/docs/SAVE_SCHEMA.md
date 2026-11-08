@@ -71,6 +71,25 @@ The format is JSON on purpose. It's data only (never executed), and the future d
 
 Empty objects may serialize as `[]` (Lua can't tell an empty array from an empty map). Readers should treat `[]` and `{}` the same for map-typed fields.
 
+## V0.2 additions (additive: still `save_version` 1)
+
+These fields were added with defaults, so v1 saves from V0.1 load and get them filled in automatically (covered by a unit test).
+
+```jsonc
+{
+  "companion":  { "stage": "sparkbit|hackbit|pulsebit|archivebit", "hp": 76 },
+  "data_core":  { "lifetime": { "build": 20, "pulse": 68, "archive": 14 },   // never spent
+                  "bank":     { "build": 20, "pulse": 62, "archive": 14 } }, // spent on uploads
+  "care":       { "hunger": 64.2, "mood": 85, "score": 12, "mistakes": 0, "starving": false, "fed": 3 },
+  "skills":     { "learned": { "flowsort": true, "pulse_dash": true }, "equipped": ["flowsort", "pulse_dash"] },
+  "aspects":    { "owned": { "sync_lens": true }, "equipped": ["sync_lens"], "scarf": "red" },
+  "cards":      { "heal": 2, "energy": 1, "boost": 0, "shield": 1 },
+  "bitdex":     { "seen": { "loop": true }, "defeated": { "loop": true } },
+  "residents":  { "barkbit": { "joined": 1762600000 }, "purrbit": { "joined": 1762600000 } },
+  "expedition": { "fetch_ready": false, "runs": 1 }
+}
+```
+
 ## Adding a field or changing the shape
 
 1. **Additive field** (new key with a default): add it to `new_default()`. No version bump needed; old saves get it from the defaults fill.

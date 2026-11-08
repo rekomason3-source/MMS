@@ -15,7 +15,7 @@ RUN=(love game)
 if [ -z "${DISPLAY:-}" ] && command -v xvfb-run >/dev/null; then
   RUN=(xvfb-run -a -s "-screen 0 640x480x24" love game)
 fi
-BITLINGS_AUTOTEST=1 BITLINGS_NOAUDIO=1 "${RUN[@]}" 2>&1 | grep -vE "^ALSA|Could not open device"
+BITLINGS_AUTOTEST=1 BITLINGS_NOAUDIO=1 BITLINGS_SPEED=3 "${RUN[@]}" 2>&1 | grep -vE "^ALSA|Could not open device"
 status=${PIPESTATUS[0]}
 echo "screenshots: $SAVE_DIR/shot_*.png"
 exit "$status"

@@ -20,6 +20,9 @@ local Fragment = require("src.entities.fragment")
 local Terminal = require("src.entities.terminal")
 local Gateway = require("src.entities.gateway")
 local LoopGlitch = require("src.entities.loop_glitch")
+local Npc = require("src.entities.npc")
+local Growth = require("src.systems.growth")
+local K = require("src.data.content")
 
 local Lounge = {}
 Lounge.__index = Lounge
@@ -29,7 +32,9 @@ Lounge.gameplay = true
 local INTERACT_R = 44
 local SEAL_R = 26
 
-function Lounge.new(game)
+function Lounge.new(game, opts)
+  opts = opts or {}
+  require("src.states.battle").define_sprites()
   local self = setmetatable({}, Lounge)
   self.game = game
   self.data = game.data
@@ -54,6 +59,16 @@ function Lounge.new(game)
     self.spark:set_state("idle")
   end
   self.spark.energy = U.clamp(self.data.companion.energy or C.player.max_energy, 1, C.player.max_energy)
+  self.spark:set_appearance(Growth.appearance(self.data))
+  self.app_t, self.hunger_t = 0, 0
+  -- home heals
+  self.data.companion.hp = Growth.stats(self.data).hp_max
+  if opts.from then
+    self.spark.x, self.spark.y, self.spark.facing = 470, 262, -1
+  end
+  self.npcs = {}
+  if self.data.residents.barkbit then self.npcs[#self.npcs + 1] = Npc.new("barkbit", 500, 340) end
+  if self.data.residents.purrbit then self.npcs[#self.npcs + 1] = Npc.new("purrbit", 250, 200) end
 
   self.fragments = {}
   for _, f in ipairs(ROOM.fragments) do
@@ -69,7 +84,19 @@ function Lounge.new(game)
 
   self:render_floor()
 
-  if self.p.awake and not self.p.prologue_complete then
+  if opts.from == "defeat" then
+    self.dialog:push({
+      { "Sparkbit", "...rebooted. Home again." },
+      { nil, "Sparkbit retreated to the Lounge and recovered. Feed it, upload skills, then try again." },
+    })
+  elseif opts.from == "chapter" then
+    self.dialog:push({
+      { "Barkbit", "So this is home! Smells like fresh data." },
+      { nil, "Barkbit moved into the Lounge. Talk to residents after expeditions." },
+    })
+  elseif opts.from == "expedition" then
+    self.dialog:push({ { "Sparkbit", "Home. Let's rest up and see what we can upload." } })
+  elseif self.p.awake and not self.p.prologue_complete then
     self.dialog:push({ { "Sparkbit", "You're back! Let's keep going." } })
   end
   -- Resume edge case: quit during improvement choice.
@@ -210,14 +237,10 @@ function Lounge:floater(text, x, y, color)
 end
 
 function Lounge:add_xp(n)
-  local c = self.data.companion
-  c.xp = c.xp + n
   self:floater("+" .. n .. " XP", self.spark.x, self.spark.y - 70, C.colors.cyan)
-  while c.xp >= C.xp_to_next(c.level) do
-    c.xp = c.xp - C.xp_to_next(c.level)
-    c.level = c.level + 1
+  if Growth.add_xp(self.data, n) > 0 then
     self.levelup_t = 2.6
-    self.data.commander.mastery = self.data.commander.mastery + 1
+    self.data.companion.hp = Growth.stats(self.data).hp_max
     self.spark:set_state("celebrate")
     Sfx.play("level")
   end
@@ -264,7 +287,10 @@ function Lounge:objective()
   if p.improvement == "" then return "Choose a Lounge improvement", nil end
   if not p.gateway_open then return "Store the memory", nil end
   if not p.prologue_complete then return "Step into the open Gateway", { { "skill2", "Pet" } } end
-  return "The Lounge is yours. Signals awaits.", { { "skill2", "Pet" }, { "map", "Status" } }
+  if not self.data.missions.completed.signals then
+    return "Upload skills at the terminal, then explore Signals", { { "skill2", "Pet" }, { "map", "Status" } }
+  end
+  return "Raise Sparkbit. Chapter 2 opens in a later build.", { { "skill2", "Pet" }, { "map", "Status" } }
 end
 
 function Lounge:checklist()
@@ -310,8 +336,11 @@ function Lounge:interaction()
     if not p.flowsort_done then
       return { key = "flowsort", label = "FlowSort", x = tx, y = ty - 70, fn = function() self:start_flowsort() end }
     end
+    if p.loop_broken then
+      return { key = "station", label = "Upload Station", x = tx, y = ty - 70, fn = function() self:open_station() end }
+    end
     return { key = "terminal_read", label = "Read", x = tx, y = ty - 70, fn = function()
-      self.dialog:push({ { "Terminal", "NODE 0 // STATUS: STABLE. Region link: SIGNALS (pending)." } })
+      self.dialog:push({ { "Terminal", "NODE 0 // STATUS: UNSTABLE. A repeating signal is corrupting the gateway." } })
     end }
   end
   local gx, gy = self.gateway:point()
@@ -328,9 +357,14 @@ function Lounge:interaction()
         fn = function() self:restore_gateway() end }
     end
     if p.prologue_complete then
-      return { key = "gateway_next", label = "Inspect", x = gx, y = gy - 80, fn = function()
-        self.dialog:push({ { "Sparkbit", "The path to Signals is still forming. Next build, we go through." } })
+      return { key = "gateway_next", label = "Enter Signals", x = gx - 30, y = gy - 80, fn = function()
+        self:enter_signals()
       end }
+    end
+  end
+  for _, n in ipairs(self.npcs) do
+    if U.dist(s.x, s.y, n.x, n.y) < 40 then
+      return { key = "npc_" .. n.id, label = "Talk", x = n.x, y = n.y - 76, fn = function() self:talk(n) end }
     end
   end
   local pr = ROOM.processor
@@ -378,6 +412,7 @@ function Lounge:pet()
     self.last_pet = self.t
     r.affinity = r.affinity + 1
     self:trait("social", 1)
+    Growth.care_action(self.data, 5)
     self:floater("Bond +1", s.x, s.y - 76, C.colors.pink)
     if s.energy < s.max_energy then
       s.energy = s.energy + 1
@@ -397,6 +432,8 @@ function Lounge:rest()
   local bonus = self.p.improvement == "cushion" and 2 or 1
   s.energy = math.min(s.max_energy, s.energy + 2 * bonus)
   self:trait("recovery", bonus)
+  self.data.companion.hp = Growth.stats(self.data).hp_max
+  Growth.care_action(self.data, 10)
   s:set_state("sleep")
   s.state_dur = 1.6
   s:say("z", 1.6)
@@ -482,6 +519,7 @@ function Lounge:flowsort_result(r)
   self:trait("efficiency", r.perfect and 2 or 1)
   if r.misses == 0 then self:trait("focus", 1) end
   self.data.settlement.resources.bits = self.data.settlement.resources.bits + r.score
+  if r.sorted then Growth.absorb(self.data, r.sorted) end
   self:spawn_glitch()
   self.spark:set_state("curious", 1.6)
   self.spark:say("?", 1.6)
@@ -498,7 +536,27 @@ function Lounge:seal_node(i)
   self:trait("focus", 1)
   self:floater("SEALED", self.glitch.nodes[i].x, self.glitch.nodes[i].y - 40, C.colors.cyan)
   self.spark:set_state("happy")
-  if self.glitch:sealed_count() >= C.glitch.seals_to_break then self:break_loop() end
+  if self.glitch:sealed_count() >= C.glitch.seals_to_break then self:start_loop_battle() end
+end
+
+-- The sealed Loop can't close its pattern: corner it and fight (battle tutorial).
+function Lounge:start_loop_battle()
+  self.dialog:push({
+    { "Sparkbit", "It can't close the loop anymore. It's cornered!" },
+    { nil, "Battle! Strike, then press A as each ring closes. Brace with A when the foe flashes." },
+  }, function()
+    local Battle = require("src.states.battle")
+    SM.push(Battle.new(self.game, "loop", { tutorial = true, on_done = function(res)
+      self.spark:set_appearance(Growth.appearance(self.data))
+      if res.won then
+        self:break_loop()
+      else
+        self.glitch:reset_seals()
+        self.spark.energy = self.spark.max_energy
+        self.dialog:push({ { "Sparkbit", "It rewound and slipped away! The seals are open again. Corner it once more." } })
+      end
+    end }))
+  end)
 end
 
 function Lounge:break_loop()
@@ -517,6 +575,7 @@ function Lounge:break_loop()
   self.dialog:push({
     { "Sparkbit", "The Loop is broken! The pattern can't close anymore." },
     { "Sparkbit", "It left a Core Shard behind. Now the gateway can hold a charge." },
+    { "Sparkbit", "And I absorbed its data! The terminal can turn data into skills now. It's an Upload Station." },
   }, function() self:save() end)
 end
 
@@ -602,15 +661,62 @@ function Lounge:enter_gateway()
     self.spark.vx, self.spark.vy = 0, 0
     self.spark.facing = -1
     self.dialog:push({
-      { "Sparkbit", "The way to Signals is still forming. For now, this node is home." },
-      { nil, "Chapter 0 complete. Chapter 1: Signals arrives in a later build." },
+      { "Sparkbit", "The gateway leads to a region called Signals. Something there is jamming everything." },
+      { nil, "Visit the Upload Station (terminal) to upload skills and feed Sparkbit. Then enter the gateway." },
     })
   end))
 end
 
 -- Update --------------------------------------------------------------------
 
-function Lounge:resume() Input.flush() end
+function Lounge:resume()
+  Input.flush()
+  self.spark:set_appearance(Growth.appearance(self.data))
+end
+
+function Lounge:open_station()
+  local Station = require("src.states.station")
+  SM.push(Station.new(self.game, function() self.spark:set_appearance(Growth.appearance(self.data)) end))
+end
+
+function Lounge:enter_signals()
+  self:save()
+  local Field = require("src.states.field")
+  SM.switch(Field.new(self.game, "signals"))
+end
+
+function Lounge:talk(n)
+  local d = self.data
+  n:say("heart", 1.2)
+  if n.id == "barkbit" then
+    if d.expedition.fetch_ready then
+      d.expedition.fetch_ready = false
+      local card = K.CARD_ORDER[love.math.random(1, #K.CARD_ORDER)]
+      d.cards[card] = (d.cards[card] or 0) + 1
+      d.settlement.resources.bits = d.settlement.resources.bits + 10
+      Sfx.play("pickup")
+      self.dialog:push({ { "Barkbit", "Fetched it! Fetched it! +10 Bits and a " .. K.CARDS[card].name .. "!" } },
+        function() self:save() end)
+    else
+      self.dialog:push({ { "Barkbit", "Go explore! I'll fetch something good while you're out." } })
+    end
+  elseif n.id == "purrbit" then
+    local ev = Growth.evolution_status(d)
+    if ev.evolved then
+      self.dialog:push({ { "Purrbit", "Your pattern settled. " .. d.companion.name .. " suits you." } })
+    elseif ev.ready then
+      self.dialog:push({ { "Purrbit", "Your core is ready. Evolve at the Upload Station: you'll become " .. K.FORMS[ev.form].name .. "." } })
+    elseif ev.type then
+      self.dialog:push({
+        { "Purrbit", string.format("You lean %s (%d%%). Keep that up and you'll become %s.", K.TYPE_NAME[ev.type],
+          math.floor(ev.share * 100), K.FORMS[ev.form].name) },
+        { "Purrbit", "Data treats and the Glitches you absorb change the pattern. So does how you're cared for." },
+      })
+    else
+      self.dialog:push({ { "Purrbit", "No pattern yet. Absorb some data." } })
+    end
+  end
+end
 
 function Lounge:update(dt)
   self.t = self.t + dt
@@ -626,6 +732,19 @@ function Lounge:update(dt)
   self.terminal:update(dt)
   self.gateway:update(dt)
   for _, f in ipairs(self.fragments) do f:update(dt) end
+  for _, n in ipairs(self.npcs) do n:update(dt) end
+  self.app_t = self.app_t - dt
+  if self.app_t <= 0 then
+    self.app_t = 0.5
+    self.spark:set_appearance(Growth.appearance(self.data))
+  end
+  if self.data.care.hunger < 30 and self.p.loop_broken then
+    self.hunger_t = self.hunger_t + dt
+    if self.hunger_t > 7 and not self.spark.emote then
+      self.hunger_t = 0
+      self.spark:say("hungry", 1.4)
+    end
+  end
 
   if self.banner then
     self.banner.t = self.banner.t + dt
@@ -837,6 +956,7 @@ function Lounge:draw()
   }
   for _, f in ipairs(self.fragments) do list[#list + 1] = { y = f.y, d = f } end
   if self.glitch then list[#list + 1] = { y = self.glitch.y, d = self.glitch } end
+  for _, n in ipairs(self.npcs) do list[#list + 1] = { y = n.y, d = n } end
   for _, o in ipairs(ROOM.obstacles) do list[#list + 1] = { y = o.y + o.h, o = o } end
   table.sort(list, function(a, b) return a.y < b.y end)
   for _, e in ipairs(list) do
@@ -868,7 +988,8 @@ function Lounge:draw()
   end
 
   local obj, prompts = self:objective()
-  Hud.draw(self.data, self.spark, (not self.dialog:active()) and obj or nil, prompts, self.t)
+  Hud.draw(self.data, self.spark, (not self.dialog:active()) and obj or nil, prompts, self.t,
+    { core = self.glitch ~= nil, frags = not self.p.terminal_repaired })
 
   if self.levelup_t > 0 then
     local a = math.min(1, self.levelup_t * 2)
