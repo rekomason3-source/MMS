@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<gameList>
+  <game>
+    <path>./Bitlings.sh</path>
+    <name>Bitlings: First Spark</name>
+    <desc>Wake Sparkbit, a tiny digital companion, inside a broken node. Gather fragments, FlowSort a data stream, break a Loop Glitch and restore the gateway together.</desc>
+    <developer>Bitlings</developer>
+    <publisher>Bitlings</publisher>
+    <genre>Adventure</genre>
+    <players>1</players>
+  </game>
+</gameList>

@@ -1,0 +1,35 @@
+{
+  "version": 4,
+  "name": "bitlings.zip",
+  "items": [
+    "Bitlings.sh",
+    "bitlings"
+  ],
+  "items_opt": [],
+  "attr": {
+    "title": "Bitlings: First Spark",
+    "porter": [
+      "Bitlings"
+    ],
+    "desc": "Wake Sparkbit, a tiny digital companion, inside a broken node. Gather fragments, FlowSort a data stream, break a Loop Glitch and restore the gateway together.",
+    "desc_md": null,
+    "inst": "Ready to run. No extra files needed.",
+    "inst_md": null,
+    "genres": [
+      "adventure",
+      "puzzle"
+    ],
+    "image": {},
+    "rtr": true,
+    "exp": false,
+    "runtime": [
+      "love_11.5"
+    ],
+    "store": [],
+    "availability": "free",
+    "reqs": [],
+    "arch": [
+      "aarch64"
+    ]
+  }
+}

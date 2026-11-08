@@ -1,0 +1,110 @@
+{
+  "project": {
+    "name": "Bitlings: First Spark",
+    "platform": "R36S",
+    "genre": [
+      "companion RPG",
+      "RTS",
+      "persistent settlement builder",
+      "adventure/puzzle"
+    ],
+    "pillars": [
+      "My Bitling",
+      "My Settlement",
+      "My Strategy",
+      "My Story",
+      "Visible Growth",
+      "Small-Screen Readability"
+    ]
+  },
+  "starter": {
+    "name": "Sparkbit",
+    "role": [
+      "starter",
+      "profiler",
+      "generalist"
+    ],
+    "motto": "Let's build something better together.",
+    "signature_skill": "FlowSort",
+    "passive": "Curiosity",
+    "visual_constants": [
+      "blue scarf",
+      "digital crest",
+      "rounded silhouette",
+      "pixel aura"
+    ]
+  },
+  "evolutions": {
+    "Hackbit": [
+      "build",
+      "automation",
+      "engineering",
+      "constructs",
+      "siege"
+    ],
+    "Archivebit": [
+      "memory",
+      "research",
+      "scouting",
+      "analysis",
+      "support"
+    ],
+    "Pulsebit": [
+      "focus",
+      "speed",
+      "execution",
+      "objective control"
+    ]
+  },
+  "regions": [
+    "Lounge/First Node",
+    "Archive",
+    "Forge",
+    "Pulse Grid",
+    "Wildstream",
+    "Null",
+    "Core"
+  ],
+  "glitches": [
+    "Loop",
+    "Noise",
+    "Fragment",
+    "Drift",
+    "Mimic",
+    "Corruptor",
+    "Nullborn"
+  ],
+  "resources": [
+    "Bits",
+    "Core Shards",
+    "Data Fragments",
+    "Energy",
+    "Memory Fragments"
+  ],
+  "buildings": [
+    "Core Nest",
+    "Archive Hall",
+    "Forge Node",
+    "Pulse Tower",
+    "Evolution Chamber",
+    "Gateway",
+    "Resource Processor",
+    "Training Node",
+    "Defense Grid"
+  ],
+  "r36s": {
+    "resolution": "640x480",
+    "aspect": "4:3",
+    "cpu": "RK3326 Cortex-A35 quad-core",
+    "gpu": "Mali-G31 MP2",
+    "ram": "1GB DDR3L",
+    "runtime": "L\u00d6VE 11.5",
+    "distribution": "PortMaster",
+    "offline_first": true
+  },
+  "prototype_order": [
+    "First Spark room",
+    "RTS control test",
+    "Settlement loop"
+  ]
+}
