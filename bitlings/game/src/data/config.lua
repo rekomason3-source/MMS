@@ -13,7 +13,7 @@ end
 
 local C = {}
 
-C.VERSION = "0.1.0"
+C.VERSION = "0.3.0"
 C.WIDTH, C.HEIGHT = 640, 480
 C.hex = hex
 

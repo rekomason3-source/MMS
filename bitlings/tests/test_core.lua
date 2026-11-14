@@ -292,5 +292,46 @@ test("old v1 saves gain growth fields", function()
   eq(d.aspects.scarf, "blue")
 end)
 
+-- v0.3 add-ons ------------------------------------------------------------------
+test("#1 training reward: 2..10 data, costs hunger, pushes trait", function()
+  local d = Save.new_default()
+  d.care.hunger = 100
+  eq(Growth.training_reward(d, "build", 0), 2)
+  eq(d.care.hunger, 85)
+  eq(Growth.training_reward(d, "build", 1), 10)
+  eq(d.traits.build, 2)
+  eq(d.training.sessions, 2); eq(d.training.best.build, 100)
+  eq(d.data_core.lifetime.build, 12)
+  d.care.hunger = 10
+  eq((Growth.can_train(d)), false)
+end)
+
+test("#2 mining amount tiers", function()
+  eq(Growth.mining_amount(1), 6); eq(Growth.mining_amount(0.7), 4)
+  eq(Growth.mining_amount(0.4), 2); eq(Growth.mining_amount(0), 1)
+end)
+
+test("#4 scan gives Archive data once per species", function()
+  local d = Save.new_default()
+  eq(Growth.scan(d, "noise_mote"), 2)
+  eq(Growth.scan(d, "noise_mote"), nil)
+  eq(d.data_core.lifetime.archive, 2)
+  assert(d.bitdex.seen.noise_mote and d.bitdex.scanned.noise_mote)
+end)
+
+test("#10 battle bonus formula", function()
+  eq(Growth.battle_bonus(0, 0, false), 0)
+  eq(Growth.battle_bonus(2, 3, false), 3)
+  eq(Growth.battle_bonus(1, 0, true), 3)
+end)
+
+test("#25 timing setting cycles and scales", function()
+  local d = Save.new_default()
+  eq(Growth.timing_mult(d), 1.0)
+  Growth.cycle_timing(d); eq(d.settings.timing, "relaxed"); eq(Growth.timing_mult(d), 1.6)
+  Growth.cycle_timing(d); eq(d.settings.timing, "strict")
+  Growth.cycle_timing(d); eq(d.settings.timing, "normal")
+end)
+
 print(string.format("\n%d passed, %d failed", passed, failed))
 os.exit(failed == 0 and 0 or 1)

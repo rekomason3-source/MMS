@@ -18,6 +18,16 @@
 
 V0.1's prologue is intact. The Loop Glitch now ends in the battle tutorial.
 
+## What's new in V0.3: the add-ons you picked (#1, #2, #4, #10, #25)
+
+| # | Add-on | How to use it | Data |
+|---|---|---|---|
+| 1 | **Training gyms** | Upload Station → TRAIN: *Hammer Timing* (Forge), *Beat Relay* (Pulse Tower), *Recall Chain* (Archive Hall) | 2–10 of the gym's type; costs 15 hunger |
+| 2 | **Data mining nodes** | Glowing crystals in each Signals screen. A to start, A again to stop the needle in the green | 1 / 2 / 4 / 6; once per expedition |
+| 4 | **Scan to learn** | Press X (scan) near a new Glitch species | +2 Archive, first scan only; reveals weakness |
+| 10 | **Battle performance bonus** | Flawless Sync chains, Braces, finishing while Overclocked | +1 per perfect, +1 per 2 braces, +2 Overclock finish |
+| 25 | **Timing setting** | Pause → Timing: Normal / Relaxed (×1.6 windows) / Strict (×0.75) | Applies to battles, gyms and mining |
+
 A native LÖVE 11.5 build of the **First Spark** prologue for the R36S handheld (640×480, controller-only, offline), packaged for PortMaster. The design source of truth is in [`docs/design/`](docs/design/); the build brief is [`docs/design/CODEX_BUILD_BRIEF.md`](docs/design/CODEX_BUILD_BRIEF.md).
 
 | | |
@@ -79,8 +89,8 @@ love dist/bitlings.love
 
 | Layer | What runs | Result |
 |---|---|---|
-| Unit (`tests/test_core.lua`, LuaJIT) | JSON, collision, save system, growth model (stats, absorb, care, uploads, loadout, evolution gates), type triangle, sprite-grid and content validation | 30/30 pass |
-| End-to-end (`src/dev/autotest.lua`, real LÖVE 11.5) | A bot plays the **prologue + all of Chapter 1**: 8 battles won with real Sync/Brace timing, Upload Station on every tab, befriend + rescue, Barkbit's fetch, evolution to Pulsebit, plus save, pause, A/B swap, migrations and scaled window. Captures 39 screenshots | 83/83 checks pass |
+| Unit (`tests/test_core.lua`, LuaJIT) | JSON, collision, save system, growth model (stats, absorb, care, uploads, loadout, evolution gates), type triangle, sprite-grid and content validation | 35/35 pass |
+| End-to-end (`src/dev/autotest.lua`, real LÖVE 11.5) | A bot plays the **prologue + all of Chapter 1**: 8 battles won with real Sync/Brace timing, Upload Station on every tab, all 3 training gyms, mining, scanning, performance bonus, timing setting, befriend + rescue, Barkbit's fetch, evolution to Pulsebit, plus save, pause, A/B swap, migrations and scaled window. Captures 39 screenshots | 98/98 checks pass |
 
 ## Docs
 

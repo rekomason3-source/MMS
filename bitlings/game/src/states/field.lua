@@ -36,7 +36,8 @@ function Field.new(game, region_id, screen_id, spawn, run)
   spawn = spawn or region.start
   self.game, self.data, self.region_id, self.region = game, game.data, region_id, region
   self.screen_id, self.sc = screen_id, region.screens[screen_id]
-  self.run = run or { cleared = {} }
+  self.run = run or { cleared = {}, mined = {} }
+  self.run.mined = self.run.mined or {}
   self.t = 0
   self.dialog = Dialog.new()
   self.floaters = {}
@@ -65,6 +66,10 @@ function Field.new(game, region_id, screen_id, spawn, run)
     if not self.data.discoveries[c.id] then
       self.caches[#self.caches + 1] = { def = c, x = c.x, y = c.y, revealed = not c.hidden, t = 0 }
     end
+  end
+  self.nodes = {}
+  for _, n in ipairs(self.sc.nodes or {}) do
+    if not self.run.mined[n.id] then self.nodes[#self.nodes + 1] = { def = n, x = n.x, y = n.y, t = 0 } end
   end
   local fr = self.sc.friend
   if fr and not self.data.residents[fr.id] then
@@ -199,6 +204,11 @@ function Field:interaction()
   if self.sc.home and U.dist(s.x, s.y, self.sc.home.x, self.sc.home.y) < 34 then
     return { label = "Return home", x = self.sc.home.x, y = self.sc.home.y - 60, fn = function() self:go_home() end }
   end
+  for _, n in ipairs(self.nodes) do
+    if U.dist(s.x, s.y, n.x, n.y) < 30 then
+      return { label = "Mine " .. K.TYPE_NAME[n.def.type] .. " data", x = n.x, y = n.y - 70, fn = function() self:start_mining(n) end }
+    end
+  end
   for _, c in ipairs(self.caches) do
     if c.revealed and U.dist(s.x, s.y, c.x, c.y) < 34 then
       return { label = "Open cache", x = c.x, y = c.y - 50, fn = function() self:open_cache(c) end }
@@ -212,6 +222,45 @@ function Field:interaction()
     return { label = "Free Bitling", x = self.caged.x, y = self.caged.y - 80, fn = function() self:rescue() end }
   end
   return nil
+end
+
+-- Data mining (#2): a needle sweeps; press A to stop it on the sweet spot.
+function Field:start_mining(n)
+  self.mining = { node = n, p = 0, dir = 1, tm = Growth.timing_mult(self.data) }
+  self.spark:set_state("focus", 999)
+end
+
+function Field:mining_ready() -- autotest helper
+  return self.mining and not self.mining.done and math.abs(self.mining.p - 0.5) < 0.025
+end
+
+function Field:update_mining(dt)
+  local m = self.mining
+  if m.done then
+    m.done = m.done - dt
+    if m.done <= 0 then
+      self.mining = nil
+      self.spark:set_state("idle")
+    end
+    return
+  end
+  m.p = m.p + m.dir * 1.1 * dt
+  if m.p > 1 then m.p, m.dir = 1, -1 elseif m.p < 0 then m.p, m.dir = 0, 1 end
+  if Input.pressed("confirm") then
+    local acc = math.max(0, 1 - math.abs(m.p - 0.5) / (0.5 * m.tm))
+    local amount = Growth.mining_amount(acc)
+    local typ = m.node.def.type
+    local added = Growth.absorb(self.data, { [typ] = amount })
+    self.run.mined[m.node.def.id] = true
+    for i, nn in ipairs(self.nodes) do if nn == m.node then table.remove(self.nodes, i) break end end
+    self:floater("+" .. (added[typ] or amount) .. " " .. K.TYPE_NAME[typ] .. " data", self.spark.x, self.spark.y - 80,
+      C.hex(K.TYPE_COLOR[typ]))
+    self.spark:set_state(acc >= 0.9 and "celebrate" or "happy", 999)
+    Sfx.play(acc >= 0.6 and "pickup" or "blip")
+    m.done = 0.8
+    m.acc = acc
+    self.game.save()
+  end
 end
 
 function Field:open_cache(c)
@@ -321,6 +370,12 @@ function Field:update(dt)
     end
     return
   end
+  for _, n in ipairs(self.nodes) do n.t = n.t + dt end
+  if self.mining then
+    self.spark:update(dt, 0, 0, self)
+    self:update_mining(dt)
+    return
+  end
   if Input.pressed("pause") then SM.push(require("src.states.pause").new(self.game, self)) return end
 
   if self.scan_cd > 0 then self.scan_cd = self.scan_cd - dt end
@@ -329,6 +384,14 @@ function Field:update(dt)
     self.scan_cd, self.scan_t = C.timing.scan_cooldown, C.timing.scan_duration
     self.spark:set_state("sorting", 0.6)
     Sfx.play("blip")
+    -- Scan to learn (#4): first scan of each species gives Archive data
+    local list = {}
+    for _, e in ipairs(self.enemies) do list[#list + 1] = e end
+    if self.boss then list[#list + 1] = self.boss end
+    for _, e in ipairs(list) do
+      local got = Growth.scan(self.data, e.id)
+      if got then self:floater("Scanned " .. e.E.name .. ": +" .. got .. " Archive", e.x, e.y - 70, C.colors.violet) end
+    end
   end
   if Input.pressed("skill2") and self.spark:controllable() then
     self.spark:set_state("pet")
@@ -449,6 +512,19 @@ function Field:draw()
       lg.rectangle("fill", c.x - 12, c.y - 18, 24, 6, 2, 2)
     end
   end
+  -- mining nodes
+  for _, n in ipairs(self.nodes) do
+    local col = C.hex(K.TYPE_COLOR[n.def.type])
+    local bob = math.sin(n.t * 3) * 2
+    UI.setColor(C.colors.outline, 0.5)
+    lg.ellipse("fill", n.x, n.y, 12, 4)
+    UI.setColor(col, 0.25 + 0.1 * math.sin(n.t * 5))
+    lg.circle("fill", n.x, n.y - 14 + bob, 15)
+    UI.setColor(col)
+    lg.polygon("fill", n.x, n.y - 28 + bob, n.x + 8, n.y - 14 + bob, n.x, n.y - 2 + bob, n.x - 8, n.y - 14 + bob)
+    UI.setColor(C.colors.white, 0.8)
+    lg.rectangle("fill", n.x - 2, n.y - 20 + bob, 3, 6)
+  end
   -- cage bars
   if self.caged then
     local cg = self.sc.cage
@@ -474,7 +550,7 @@ function Field:draw()
   end
 
   local it = self.current
-  if it and not self.dialog:active() then
+  if it and not self.dialog:active() and not self.mining then
     local w = UI.font_small:getWidth(it.label) + 34
     local x, y = math.floor(U.clamp(it.x - w / 2, 4, C.WIDTH - w - 4)), math.floor(it.y)
     UI.panel(x, y, w, 24)
@@ -486,6 +562,25 @@ function Field:draw()
     UI.text(f.text, U.clamp(f.x - 150, 4, C.WIDTH - 304), f.y, { c[1], c[2], c[3], math.min(1, f.t * 2) }, UI.font, "center", 300)
   end
 
+  if self.mining then
+    local m = self.mining
+    local w = 140
+    local x = math.floor(U.clamp(self.spark.x - 70, 14, C.WIDTH - w - 14))
+    local y = math.floor(self.spark.y - 104)
+    if y < 80 then y = math.floor(self.spark.y + 18) end -- flip below near the HUD
+    UI.panel(x - 6, y - 6, w + 12, 30)
+    UI.setColor(C.colors.outline)
+    lg.rectangle("fill", x, y, w, 18, 4, 4)
+    -- zones match Growth.mining_amount: inner = 6 data, outer = 4 data
+    local outer, inner = 0.2 * m.tm, 0.05 * m.tm
+    UI.setColor(C.colors.green, 0.4)
+    lg.rectangle("fill", x + (0.5 - outer) * w, y, outer * 2 * w, 18)
+    UI.setColor(C.colors.green)
+    lg.rectangle("fill", x + (0.5 - inner) * w, y, inner * 2 * w, 18)
+    UI.setColor(C.colors.white)
+    lg.rectangle("fill", x + m.p * w - 2, y - 4, 4, 26)
+    if not m.done then UI.prompts({ { "confirm", "Stop" } }, x + w + 4, y + 24, true) end
+  end
   local obj, prompts = self:objective()
   Hud.draw(self.data, self.spark, (not self.dialog:active()) and obj or nil, prompts, self.t)
   if self.title_t > 0 then

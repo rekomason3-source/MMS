@@ -136,11 +136,41 @@ function AT:fight(shot_name)
     end
   end
   local won = B.phase == "win"
+  if won then self.bonus_total = (self.bonus_total or 0) + B.rewards.bonus end
   self:sec(1.3)
   self:tap("confirm")
   self:wait_for(function() return SM.name() ~= "battle" end, 3, "battle closes")
   self.battles = (self.battles or 0) + 1
   return won
+end
+
+local function Station_tab(S) return S.TABS[S.tab] end
+
+-- Plays a training gym minigame well.
+function AT:train(T, shotname)
+  self:sec(0.3)
+  self:tap("confirm")
+  local shot_done = false
+  local guard = 0
+  while T.phase == "play" do
+    guard = guard + 1
+    if guard > 20000 then error("training stuck", 0) end
+    if T.gym == "forge" then
+      if T:forge_bot_ready() then Input.inject("confirm", 1) end
+    elseif T.gym == "pulse" then
+      local dir = T:pulse_bot_dir()
+      if dir then Input.inject(dir, 1) end
+    elseif T.sub == "input" then
+      Input.inject(T.seq[T.input_i], 1)
+      self:frames(2)
+    end
+    if shotname and not shot_done and T.t > 2.2 then shot_done = true; love.graphics.captureScreenshot("shot_" .. shotname .. ".png") end
+    coroutine.yield()
+  end
+  local score = T.score
+  self:sec(1.0)
+  self:tap("confirm")
+  return score
 end
 
 -- the playthrough ----------------------------------------------------------
@@ -261,6 +291,10 @@ function AT:script()
   self:check(L.p.flowsort_done and L.glitch ~= nil, "FlowSort reveals the Loop Glitch")
   self:sec(0.5); self:shot("12_loop_reveal")
   self:clear_dialogs(L)
+  self:wait_for(function() return L.scan_cd <= 0 end, 4, "scan cooldown")
+  local arch0 = g.data.data_core.lifetime.archive
+  self:tap("skill1")
+  self:check(g.data.bitdex.scanned.loop and g.data.data_core.lifetime.archive == arch0 + 2, "#4 scanning the Loop gives +2 Archive")
 
   -- 7 break the Loop: seal nodes away from the glitch
   local hits = 0
@@ -385,6 +419,12 @@ function AT:script()
   self:check(SM.name() == "pause", "swap does not leak a cancel press")
   self:tap("confirm")
   self:check(not Input.swap_ab, "A/B swap disabled")
+  for i, it in ipairs(P.items) do if it.id == "timing" then while P.sel ~= i do self:tap("down") end end end
+  self:tap("confirm")
+  self:check(g.data.settings.timing == "relaxed", "#25 timing set to Relaxed")
+  self:sec(0.2); self:shot("18b_pause_timing")
+  self:tap("confirm"); self:tap("confirm")
+  self:check(g.data.settings.timing == "normal", "#25 timing cycles back to Normal")
   self:tap("cancel")
 
   -- 15 Chapter 1: Upload Station -> Signals -> evolution ----------------------
@@ -425,6 +465,23 @@ function AT:script()
   self:check(d.settlement.resources.bits == bits0 - 5 and d.care.hunger > 50, "fed a Byte Snack")
   self:sec(0.2); self:shot("26_station_care")
   self:tap("r1")
+  self:check(Station_tab(S) == "TRAIN", "TRAIN tab present")
+  d.care.hunger = 100
+  local Training = require("src.states.training")
+  for i, gym in ipairs(Training.ORDER) do
+    while S.sel ~= i do self:tap("down") end
+    local typ = Training.GYMS[gym].type
+    local before = d.data_core.lifetime[typ]
+    self:tap("confirm")
+    self:check(SM.name() == "training", "#1 opened " .. Training.GYMS[gym].name)
+    local score = self:train(self:top(), "26" .. string.char(96 + i) .. "_train_" .. gym)
+    self:check(score >= 0.9 and d.data_core.lifetime[typ] >= before + 8,
+      string.format("#1 %s score %d%% -> +%d %s data", gym, math.floor(score * 100), d.data_core.lifetime[typ] - before, typ))
+    self:wait_for(function() return SM.name() == "station" end, 2, "back to station")
+  end
+  self:check(d.care.hunger <= 55, "#1 training made Sparkbit hungry (" .. math.floor(d.care.hunger) .. ")")
+  self:sec(0.2); self:shot("26d_station_train")
+  self:tap("r1")
   self:sec(0.2); self:shot("27_bitdex")
   self:tap("cancel")
   self:check(SM.name() == "lounge", "B closes the station")
@@ -436,6 +493,10 @@ function AT:script()
   local F1 = self:top()
   self:check(F1.screen_id == "fields", "gateway leads to Signal Fields")
   self:sec(1.2); self:shot("28_signals_fields")
+  local arch1 = d.data_core.lifetime.archive
+  self:tap("skill1")
+  self:check(d.bitdex.scanned.noise_mote and d.bitdex.scanned.drift_wisp and d.data_core.lifetime.archive == arch1 + 4,
+    "#4 scanning new Glitches gives Archive data")
   local function clear_screen(Fs, shotname)
     local n = 0
     while #Fs.enemies > 0 do
@@ -454,6 +515,19 @@ function AT:script()
   self:teleport(F1, c1.x, c1.y + 10)
   self:tap("confirm")
   self:check(d.discoveries.cache_fields == true, "opened data cache")
+  self:check((self.bonus_total or 0) > 0, "#10 perfect play earned bonus data (" .. (self.bonus_total or 0) .. ")")
+  local nd1 = F1.nodes[1]
+  local pulse0 = d.data_core.lifetime.pulse
+  self:teleport(F1, nd1.x, nd1.y + 6)
+  self:wait_for(function() return F1.spark:controllable() end, 3, "controllable")
+  self:tap("confirm")
+  self:check(F1.mining ~= nil, "#2 started mining a data node")
+  self:sec(0.3); self:shot("28b_mining")
+  self:wait_for(function()
+    if F1:mining_ready() then Input.inject("confirm", 1) end
+    return F1.mining == nil
+  end, 6, "mining done")
+  self:check(F1.run.mined.mine_fields and d.data_core.lifetime.pulse == pulse0 + 6, "#2 perfect mine = +6 Pulse data")
   self:teleport(F1, 594, 262)
   self:wait_for(function() return SM.name() == "field" and self:top().screen_id == "marsh" end, 2, "marsh")
   local F2 = self:top()

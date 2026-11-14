@@ -48,7 +48,8 @@ function Save.new_default()
     care = { hunger = 80, mood = 70, score = 0, mistakes = 0, starving = false, fed = 0 },
     aspects = { owned = {}, equipped = {}, scarf = "blue" },
     cards = { heal = 2, energy = 0, boost = 0, shield = 0 },
-    bitdex = { seen = {}, defeated = {} },
+    bitdex = { seen = {}, defeated = {}, scanned = {} },
+    training = { sessions = 0, best = {} },
     residents = {},
     expedition = { fetch_ready = false, runs = 0 },
     traits = traits,
@@ -86,7 +87,7 @@ function Save.new_default()
       gateway_open = false,
       prologue_complete = false,
     },
-    settings = { perf_overlay = false, swap_ab = false, sfx = true },
+    settings = { perf_overlay = false, swap_ab = false, sfx = true, timing = "normal" },
   }
 end
 

@@ -55,6 +55,8 @@ function Battle.new(game, enemy_id, opts)
   self.meter = 0
   self.coil = Growth.has_aspect(d, "overclock_coil") and 1.5 or 1
   self.lens = Growth.has_aspect(d, "sync_lens")
+  self.tm = Growth.timing_mult(d)
+  self.perfects, self.braces = 0, 0
   self.b = { atk_t = 0, boost_t = 0, shield_t = 0, oc_t = 0, drone_t = 0, guard = false, shield_card = false }
   self.enemy = { hp = E.hp, max = E.hp, type = E.type, vuln_t = 0, charging = nil, flash = 0, shake = 0 }
   self.spark = Sparkbit.new(170, 300)
@@ -178,7 +180,7 @@ function Battle:start_strike()
 end
 
 function Battle:sync_window()
-  return self.lens and 0.11 or 0.075
+  return (self.lens and 0.11 or 0.075) * self.tm
 end
 
 -- true when pressing A now lands the current beat (used by the autotest bot)
@@ -205,8 +207,10 @@ function Battle:update_strike(dt)
     s.total = s.total + dmg
     self:floater("SYNC x" .. s.hits, 170, 200, C.colors.cyan)
     if self.enemy.hp <= 0 or s.beat >= #BEAT_DUR then
-      if s.hits == 4 then
+      -- perfect = no missed beat: full 4-hit chain, or a flawless chain that finished the foe
+      if s.hits == 4 or (self.enemy.hp <= 0 and s.hits >= 2) then
         self:floater("PERFECT SYNC!", 170, 176, C.colors.amber)
+        self.perfects = self.perfects + 1
         self:add_meter(15)
       end
       return self:end_strike()
@@ -355,7 +359,7 @@ function Battle:start_brace(atk)
   self.msg = nil
   self.brace = {
     atk = atk, t = 0, flash_at = 0.35 + love.math.random() * 0.6,
-    window = self.lens and 0.3 or 0.22, ok = false, early = false,
+    window = (self.lens and 0.3 or 0.22) * self.tm, ok = false, early = false,
   }
 end
 
@@ -370,7 +374,7 @@ function Battle:update_brace(dt)
   b.t = b.t + dt
   if Input.pressed("confirm") and not b.ok and not b.early then
     if b.t < b.flash_at then b.early = true
-    elseif b.t <= b.flash_at + b.window then b.ok = true; Sfx.play("blip") end
+    elseif b.t <= b.flash_at + b.window then b.ok = true; self.braces = self.braces + 1; Sfx.play("blip") end
   end
   if b.t >= b.flash_at + b.window + 0.05 then
     self.brace = nil
@@ -429,6 +433,7 @@ end
 -- Outcomes ------------------------------------------------------------------------------
 function Battle:win()
   local d, E = self.data, self.E
+  local oc_finish = self.b.oc_t > 0
   self.phase = "win"
   self.win_t = 0
   self.spark.overclock = false
@@ -438,6 +443,12 @@ function Battle:win()
   if Growth.has_aspect(d, "lucky_byte") then bits = math.floor(bits * 1.5) end
   d.settlement.resources.bits = d.settlement.resources.bits + bits
   local absorbed = Growth.absorb(d, E.data)
+  -- performance bonus (#10): skill turns into extra data of the foe's type
+  local bonus = Growth.battle_bonus(self.perfects, self.braces, oc_finish)
+  if bonus > 0 then
+    local extra = Growth.absorb(d, { [self.E.type] = bonus })
+    for k, v in pairs(extra) do absorbed[k] = (absorbed[k] or 0) + v end
+  end
   local levels = Growth.add_xp(d, E.xp)
   local card = E.card
   if not card and love.math.random() < 0.25 then card = K.CARD_ORDER[love.math.random(1, #K.CARD_ORDER)] end
@@ -449,7 +460,8 @@ function Battle:win()
     self.hp = self.st.hp_max
   end
   d.companion.hp = self.hp
-  self.rewards = { bits = bits, data = absorbed, xp = E.xp, levels = levels, card = card, aspect = E.aspect }
+  self.rewards = { bits = bits, data = absorbed, xp = E.xp, levels = levels, card = card, aspect = E.aspect,
+    bonus = bonus, perfects = self.perfects, braces = self.braces, oc_finish = oc_finish }
   -- data particles flow from the foe into Sparkbit
   for i = 1, 24 do
     local t = K.TYPES[(i % 3) + 1]
@@ -672,7 +684,7 @@ function Battle:draw_status()
   UI.bar(C.WIDTH - 246, 40, 200, 8, e.hp / e.max, C.colors.glitch)
   UI.text(tostring(e.hp), C.WIDTH - 42, 34, C.colors.text, UI.font_small)
   if e.vuln_t > 0 then UI.text("EXPOSED", C.WIDTH - 246, 48, C.colors.amber, UI.font_small) end
-  if self.opts.tutorial or d.bitdex.defeated[self.eid] then
+  if self.opts.tutorial or d.bitdex.defeated[self.eid] or d.bitdex.scanned[self.eid] then
     local weak
     for k, v in pairs(K.BEATS) do if v == e.type then weak = k end end
     if weak then UI.text("Weak to " .. K.TYPE_NAME[weak], C.WIDTH - 160, 48, C.colors.dim, UI.font_small) end
@@ -742,7 +754,11 @@ function Battle:draw_panel()
     UI.text(string.format("+%d XP   +%d Bits%s%s", r.xp, r.bits,
       r.card and ("   +1 " .. K.CARDS[r.card].name) or "",
       r.levels > 0 and "   LEVEL UP!" or ""), 30, 404, C.colors.text, UI.font_small)
-    if r.aspect then UI.text("New aspect: " .. K.ASPECTS[r.aspect].name, 30, 424, C.colors.amber, UI.font_small) end
+    if r.aspect then UI.text("New aspect: " .. K.ASPECTS[r.aspect].name, 30, 424, C.colors.amber, UI.font_small)
+    elseif r.bonus > 0 then
+      UI.text(string.format("Performance bonus +%d data  (%d perfect, %d braced%s)", r.bonus, r.perfects, r.braces,
+        r.oc_finish and ", Overclock finish" or ""), 30, 424, C.colors.amber, UI.font_small)
+    end
     if self.win_t > 1.2 then UI.prompts({ { "confirm", "Continue" } }, C.WIDTH - 22, 444, true) end
   elseif ph == "lose" then
     UI.text("Sparkbit's core destabilized...", 30, 366, C.colors.glitch, UI.font)

@@ -24,6 +24,7 @@ return {
           { id = "drift_wisp", path = { { 548, 372 }, { 548, 200 } } },
         },
         caches = { { id = "cache_fields", x = 572, y = 104, bits = 15, card = "heal" } },
+        nodes = { { id = "mine_fields", x = 110, y = 160, type = "pulse" } },
       },
       marsh = {
         title = "Static Marsh",
@@ -43,6 +44,7 @@ return {
           { id = "noise_mote", path = { { 380, 410 }, { 560, 420 } } },
         },
         caches = { { id = "cache_marsh", x = 84, y = 414, bits = 25, card = "energy", hidden = true } },
+        nodes = { { id = "mine_marsh", x = 390, y = 120, type = "archive" } },
         friend = { id = "purrbit", x = 566, y = 262, hidden = true },
       },
       tower = {
@@ -57,6 +59,7 @@ return {
         exits = { { side = "bottom", a = 270, b = 370, to = "marsh", sx = 320, sy = 116 } },
         boss = { id = "corruptor", x = 320, y = 236 },
         cage = { x = 300, y = 96, w = 40, h = 36 },
+        nodes = { { id = "mine_tower", x = 560, y = 416, type = "build" } },
       },
     },
   },

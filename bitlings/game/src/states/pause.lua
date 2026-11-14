@@ -19,6 +19,10 @@ function Pause.new(game, under)
     { id = "objectives", label = function() return "Objectives & Status" end },
     { id = "perf", label = function() return "Perf Overlay: " .. (Perf.enabled and "ON" or "OFF") end },
     { id = "swap", label = function() return "Swap A/B: " .. (Input.swap_ab and "ON" or "OFF") end },
+    { id = "timing", label = function()
+      local G = require("src.systems.growth")
+      return "Timing: " .. G.TIMING_NAME[game.data.settings.timing or "normal"]
+    end },
     { id = "sfx", label = function() return "Sound: " .. (game.data.settings.sfx == false and "OFF" or "ON") end },
     { id = "save", label = function() return "Save Game" end },
     { id = "title", label = function() return "Save & Return to Title" end },
@@ -49,6 +53,8 @@ function Pause:update(dt)
     s.swap_ab = not s.swap_ab
     Input.swap_ab = s.swap_ab
     Input.flush() -- the held button must not fire its new meaning
+  elseif id == "timing" then
+    require("src.systems.growth").cycle_timing(self.game.data)
   elseif id == "sfx" then
     s.sfx = s.sfx == false
     self.game.apply_settings()

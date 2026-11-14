@@ -46,6 +46,18 @@ Sort 9 of 12 to pass. All 12 = *Perfect Flow* (+10 XP, extra Efficiency). Each c
 | A | Upload / equip skill · buy / install aspect · change scarf · feed · buy card · Evolve |
 | B | Back to the Lounge (saves) |
 
+## Training gyms (Upload Station → TRAIN)
+
+| Gym | Input |
+|---|---|
+| Hammer Timing (Build) | A when the marker is in the hot zone (6 strikes) |
+| Beat Relay (Pulse) | Left / Up / Right as each note hits the line (12 notes) |
+| Recall Chain (Archive) | Watch, then repeat the arrow sequence with the D-pad (5 rounds) |
+
+## Data mining nodes (Signals)
+
+Stand on a crystal: **A** to start, **A** again to stop the needle. Inner green = 6 data, outer = 4.
+
 ## Menus
 
 D-pad / stick navigates (with auto-repeat), A selects, B backs out.
@@ -56,6 +68,7 @@ D-pad / stick navigates (with auto-repeat), A selects, B backs out.
 |---|---|
 | Perf Overlay | Same as R3 / F3 |
 | Swap A/B | For firmware whose SDL map puts confirm on the other face button. Takes effect immediately; the held button is ignored until it is released |
+| Timing | Normal / Relaxed (×1.6 windows) / Strict (×0.75). Applies to Sync, Brace, gyms and mining |
 | Sound | Procedural UI sounds on/off |
 
 Button glyphs on screen follow the last device used (gamepad letters or keyboard keys) and respect Swap A/B.

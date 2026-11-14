@@ -133,6 +133,21 @@ Forms get ×1.3 stats and take on that type. Identity, memories, bond and reside
 | Lounge (Ch. 0) | 1 | Loop Glitch: seal 3 nodes, then the **battle tutorial** | Upload Station, residents |
 | **Signals (Ch. 1)** | Signal Fields → Static Marsh → Relay Tower | Noise Mote ×3, Drift Wisp, Fragment Crab, Mimic Node, **Corruptor (boss)** | 2 caches (1 hidden), Purrbit (hidden), Barkbit (caged), end card |
 
+## 9b. Data inputs (v0.3)
+
+| Input | Source | Amount | Limit |
+|---|---|---|---|
+| Battle absorb | Beaten Glitch | Its data table | Per battle |
+| FlowSort | Correct sorts | 1 per packet | Prologue |
+| Data Treats | Upload Station (15 Bits) | +3 chosen type | Bits, hunger cap |
+| **Training gyms (#1)** | 3 minigames | 2–8, +2 if ≥ 90% | −15 hunger each (DW1-style training cost) |
+| **Mining nodes (#2)** | 1 crystal per Signals screen | 1/2/4/6 by accuracy | Once per expedition |
+| **Scan (#4)** | X near a new species | +2 Archive | Once per species |
+| **Performance bonus (#10)** | Perfect chains, braces, Overclock finish | 1 + ½ + 2 | Per battle |
+| Timing setting (#25) | Pause menu | ×1.6 / ×1 / ×0.75 windows | — |
+
+A **perfect Sync** is any chain without a miss that reaches 4 hits *or* finishes the foe at 2+ hits, so ending fights fast isn't penalised.
+
 ## 10. Next design questions (for the user)
 
 1. Second-stage evolutions: 2 branches per form (e.g. Hackbit → tank vs. engineer), gated on care?

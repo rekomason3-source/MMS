@@ -297,6 +297,64 @@ function G.evolve(save)
   return true, st.form
 end
 
+-- Timing difficulty (#25) ----------------------------------------------------------
+G.TIMING = { normal = 1.0, relaxed = 1.6, strict = 0.75 }
+G.TIMING_ORDER = { "normal", "relaxed", "strict" }
+G.TIMING_NAME = { normal = "Normal", relaxed = "Relaxed", strict = "Strict" }
+
+function G.timing_mult(save) return G.TIMING[save.settings.timing or "normal"] or 1 end
+
+function G.cycle_timing(save)
+  local cur = save.settings.timing or "normal"
+  for i, id in ipairs(G.TIMING_ORDER) do
+    if id == cur then save.settings.timing = G.TIMING_ORDER[i % #G.TIMING_ORDER + 1] return end
+  end
+  save.settings.timing = "normal"
+end
+
+-- Training gyms (#1) -----------------------------------------------------------------
+G.TRAIN_HUNGER = 15
+
+function G.can_train(save)
+  if save.care.hunger < 20 then return false, "Too hungry to train. Feed Sparkbit first" end
+  return true
+end
+
+-- score 0..1 -> 2..8 data (+2 for a near-perfect run). Costs hunger, like real training.
+function G.training_reward(save, typ, score)
+  score = math.max(0, math.min(1, score))
+  local n = 2 + math.floor(score * 6 + 1e-6)
+  if score >= 0.9 then n = n + 2 end
+  save.care.hunger = math.max(0, save.care.hunger - G.TRAIN_HUNGER)
+  G.add_mood(save, 3)
+  local tr = K.TYPE_TRAIT[typ]
+  save.traits[tr] = (save.traits[tr] or 0) + 1
+  save.training.sessions = save.training.sessions + 1
+  save.training.best[typ] = math.max(save.training.best[typ] or 0, math.floor(score * 100))
+  local added = G.absorb(save, { [typ] = n })
+  return added[typ] or n
+end
+
+-- Data mining nodes (#2): accuracy 0..1 -> 1..6 data -----------------------------------
+function G.mining_amount(acc)
+  if acc >= 0.9 then return 6 elseif acc >= 0.6 then return 4 elseif acc >= 0.3 then return 2 end
+  return 1
+end
+
+-- Scan to learn (#4): first scan of a species gives Archive data ----------------------
+function G.scan(save, id)
+  if save.bitdex.scanned[id] then return nil end
+  save.bitdex.scanned[id] = true
+  save.bitdex.seen[id] = true
+  local added = G.absorb(save, { archive = 2 })
+  return added.archive
+end
+
+-- Battle performance bonus (#10) --------------------------------------------------------
+function G.battle_bonus(perfect_syncs, braces, oc_finish)
+  return perfect_syncs + math.floor(braces / 2) + (oc_finish and 2 or 0)
+end
+
 -- Appearance: everything the renderer needs to show growth --------------------------------
 function G.appearance(save)
   local dom = G.dominant(save)

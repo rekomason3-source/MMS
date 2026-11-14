@@ -448,6 +448,10 @@ function Lounge:flowsort_scan()
   Sfx.play("blip")
   local sk = self.data.skills.flowsort
   sk.uses = (sk.uses or 0) + 1
+  if self.glitch and not self.glitch.dying then
+    local got = Growth.scan(self.data, "loop")
+    if got then self:floater("Scanned Loop Glitch: +" .. got .. " Archive", s.x, s.y - 90, C.colors.violet) end
+  end
   self:trait("efficiency", 0) -- scanning itself grants nothing (no fake progress)
 end
 

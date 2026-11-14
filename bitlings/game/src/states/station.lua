@@ -20,7 +20,7 @@ local Station = {}
 Station.__index = Station
 Station.name = "station"
 
-Station.TABS = { "STATUS", "SKILLS", "ASPECTS", "CARE", "BITDEX" }
+Station.TABS = { "STATUS", "SKILLS", "ASPECTS", "CARE", "TRAIN", "BITDEX" }
 
 function Station.new(game, on_close)
   require("src.states.battle").define_sprites()
@@ -56,6 +56,8 @@ function Station:rows()
   elseif tab == "CARE" then
     for _, id in ipairs(K.FOOD_ORDER) do rows[#rows + 1] = { kind = "food", id = id } end
     for _, id in ipairs(K.CARD_ORDER) do rows[#rows + 1] = { kind = "card", id = id } end
+  elseif tab == "TRAIN" then
+    for _, id in ipairs(require("src.states.training").ORDER) do rows[#rows + 1] = { kind = "gym", id = id } end
   elseif tab == "BITDEX" then
     for _, id in ipairs(K.ENEMY_ORDER) do rows[#rows + 1] = { kind = "enemy", id = id } end
     for _, id in ipairs(K.RESIDENT_ORDER) do rows[#rows + 1] = { kind = "resident", id = id } end
@@ -83,6 +85,16 @@ function Station:act(row)
     if ok then self.preview:set_state("happy"); self.preview:say("heart", 1.0) end
   elseif row.kind == "card" then
     ok, msg = Growth.buy_card(d, row.id)
+  elseif row.kind == "gym" then
+    local can, why = Growth.can_train(d)
+    if not can then self:say(why, false) return end
+    local Training = require("src.states.training")
+    SM.push(Training.new(self.game, row.id, function(res)
+      self:say(string.format("+%d %s data from training (%d%%)", res.gained,
+        K.TYPE_NAME[Training.GYMS[res.gym].type], math.floor(res.score * 100)), true)
+      self:refresh()
+    end))
+    return
   else
     return
   end
@@ -262,12 +274,17 @@ function Station:row_text(row)
   elseif row.kind == "card" then
     local c = K.CARDS[row.id]
     return c.name .. "  x" .. (d.cards[row.id] or 0), c.cost .. " Bits", C.colors.cyan, c.desc
+  elseif row.kind == "gym" then
+    local Gy = require("src.states.training").GYMS[row.id]
+    local best = d.training.best[Gy.type]
+    return Gy.name .. ": " .. Gy.game, best and ("best " .. best .. "%") or "-" .. Growth.TRAIN_HUNGER .. " hunger",
+      C.hex(K.TYPE_COLOR[Gy.type]), "Trains " .. K.TYPE_NAME[Gy.type] .. " data. " .. Gy.how .. " Costs " .. Growth.TRAIN_HUNGER .. " hunger."
   elseif row.kind == "enemy" then
     local E = K.ENEMIES[row.id]
     if not d.bitdex.seen[row.id] then return "???", "", C.colors.outline, "Not yet encountered." end
-    local status = d.bitdex.defeated[row.id] and "absorbed" or "seen"
+    local status = d.bitdex.defeated[row.id] and "absorbed" or (d.bitdex.scanned[row.id] and "scanned" or "seen")
     local desc = E.desc
-    if d.bitdex.defeated[row.id] then
+    if d.bitdex.defeated[row.id] or d.bitdex.scanned[row.id] then
       local weak
       for k, v in pairs(K.BEATS) do if v == E.type then weak = k end end
       local drops = {}
@@ -296,6 +313,8 @@ function Station:draw_list(tab)
     UI.bar(x0 + 54, y0 + 4, 110, 7, d.care.hunger / 100, d.care.hunger < 30 and C.colors.glitch or C.colors.amber)
     UI.text("Mood", x0 + 180, y0, C.colors.dim, UI.font_small)
     UI.bar(x0 + 220, y0 + 4, 110, 7, d.care.mood / 100, C.colors.pink)
+  elseif tab == "TRAIN" then
+    UI.text("Training turns effort into data (and makes Sparkbit hungry)", x0, y0, C.colors.cyan, UI.font_small)
   elseif tab == "BITDEX" then
     local seen = 0
     for _ in pairs(d.bitdex.seen) do seen = seen + 1 end
