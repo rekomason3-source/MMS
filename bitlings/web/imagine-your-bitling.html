@@ -150,8 +150,9 @@ textarea{min-height:76px}
       </div>
       <div id="whisperBox" hidden>
         <div class="field"><label for="whisperIn">Say something to the Seed</label>
-          <div class="row"><input type="text" id="whisperIn" maxlength="200" placeholder="I love the ocean at night."><button class="btn" id="whisperMic" type="button" hidden>🎙</button><button class="btn go" id="whisperSend" type="button">Say it</button></div>
+          <form class="row" id="whisperForm" autocomplete="off"><input type="text" id="whisperIn" maxlength="200" enterkeyhint="send" placeholder="I love the ocean at night."><button class="btn" id="whisperMic" type="button" hidden>🎙</button><button class="btn go" id="whisperSend" type="submit">Say it</button></form>
         </div>
+        <p class="note" id="whisperStatus" aria-live="polite"></p>
       </div>
       <div id="heardBox" hidden>
         <h3 style="font-size:15px;margin:10px 0 4px">What it heard</h3>
@@ -176,7 +177,7 @@ textarea{min-height:76px}
       <h2 id="talkTitle">Talk</h2>
       <p class="lead" id="talkLead">It remembers what matters. Tell it things and it learns who you are.</p>
       <div class="chat" id="chat" aria-live="polite"></div>
-      <div class="row" style="margin-top:8px"><input type="text" id="talkIn" maxlength="400" placeholder="Say something…"><button class="btn" id="talkMic" type="button" hidden>🎙</button><button class="btn go" id="talkSend" type="button">Send</button></div>
+      <form class="row" id="talkForm" autocomplete="off" style="margin-top:8px"><input type="text" id="talkIn" maxlength="400" enterkeyhint="send" placeholder="Say something…"><button class="btn" id="talkMic" type="button" hidden>🎙</button><button class="btn go" id="talkSend" type="submit">Send</button></form>
       <div class="note" id="talkNote"></div>
     </section>
 
@@ -1143,7 +1144,7 @@ function holdEnd(){ if (anim.holding){ anim.holding = false; renderSeed(); sched
 $("eHold").addEventListener("pointerdown", holdStart);
 ["pointerup","pointerleave","pointercancel"].forEach(ev => { $("eHold").addEventListener(ev, holdEnd); cv.addEventListener(ev, holdEnd); });
 window.addEventListener("blur", holdEnd);
-$("eTalk").addEventListener("click", () => { $("whisperBox").hidden = false; $("imagineBox").hidden = true; $("whisperBox").scrollIntoView({ behavior: "smooth", block: "center" }); $("whisperIn").focus({ preventScroll: true }); });
+$("eTalk").addEventListener("click", () => { if (!$("whisperBox").hidden && $("whisperIn").value.trim()){ sendWhisper(); return; } $("whisperBox").hidden = false; $("imagineBox").hidden = true; $("whisperBox").scrollIntoView({ behavior: "smooth", block: "center" }); $("whisperIn").focus({ preventScroll: true }); });
 $("eImagine").addEventListener("click", () => { $("imagineBox").hidden = false; $("whisperBox").hidden = true; $("imagineBox").scrollIntoView({ behavior: "smooth", block: "center" }); $("imagineIn").value = S.egg.desc; $("nameIn").value = S.egg.wantName; $("callIn").value = S.egg.callMe; $("imagineIn").focus(); });
 const COLOR_WORDS = [["ocean","#4fa8e8"],["sea","#4fa8e8"],["sky","#86cdf2"],["blue","#6fa8ff"],["night","#6b6fd8"],["star","#d9d2ff"],["moon","#e8e4c8"],["sun","#ffd27a"],["fire","#ff8a4c"],["red","#ff7b7b"],["green","#7fe3a2"],["forest","#5fb87a"],["tree","#6fc28a"],["flower","#ff9fc8"],["pink","#ffb0c8"],["purple","#b89bff"],["gold","#ffd27a"],["snow","#eef4ff"],["rain","#8fb4d8"],["music","#c79bff"],["basketball","#ff9c45"],["orange","#ffb36b"],["love","#ff8fb0"],["safe","#9fe0c0"]];
 const TRAIT_WORDS = [["brave","brave"],["safe","protective"],["protect","protective"],["love","loving"],["play","playful"],["fun","playful"],["learn","curious"],["why","curious"],["quiet","gentle"],["sleep","calm"],["run","quick"],["build","inventive"],["music","musical"],["laugh","funny"],["friend","loyal"]];
@@ -1155,13 +1156,22 @@ function localImprint(text){
   return { reaction: r, color: c ? c[1] : null, trait: t ? t[1] : null };
 }
 async function sendWhisper(){
-  const v = $("whisperIn").value.trim(); if (!v) return;
+  try { await sendWhisperInner(); }
+  catch(err){ $("whisperStatus").textContent = "That line didn't land (" + (err && (err.message || err.code) || "unknown error") + "). Try again."; }
+}
+async function sendWhisperInner(){
+  const v = $("whisperIn").value.trim();
+  if (!v){ $("whisperStatus").textContent = "Type something first, then tap Say it."; $("whisperIn").focus(); return; }
+  if (S.phase !== "seed"){ return; }
   if (!booted) actedBeforeLoad = true;
   const said = v.slice(0, 200);
   S.egg.whispers.push(said); if (S.egg.whispers.length > 8) S.egg.whispers.shift();
   const imp = { said, reaction: "…listening…", color: null, trait: null, pending: true };
   S.egg.imprints.push(imp); if (S.egg.imprints.length > 8) S.egg.imprints.shift();
   $("whisperIn").value = ""; anim.warm = Math.min(1, anim.warm + 0.4); anim.listen = 1.2;
+  const n = S.egg.whispers.length;
+  $("whisperStatus").textContent = n < 3 ? `Heard ${n} of 3. Say something else to it.` : `Heard ${n}. That's enough to hatch, but it keeps listening (up to 8).`;
+  $("whisperIn").focus({ preventScroll: true });
   renderSeed(); scheduleSave();
   let res = null;
   if (caps.sample){
@@ -1190,8 +1200,8 @@ function seedTint(){
   let r=0,g=0,b=0; for (const c of cols){ const n = parseInt(c.slice(1),16); r += (n>>16)&255; g += (n>>8)&255; b += n&255; }
   const k = cols.length; return "#" + ((1<<24)|(Math.round(r/k)<<16)|(Math.round(g/k)<<8)|Math.round(b/k)).toString(16).slice(1);
 }
-$("whisperSend").addEventListener("click", sendWhisper);
-$("whisperIn").addEventListener("keydown", (e) => { if (e.key === "Enter") sendWhisper(); });
+$("whisperForm").addEventListener("submit", (e) => { e.preventDefault(); sendWhisper(); });
+$("whisperSend").addEventListener("pointerdown", (e) => e.preventDefault()); // keep the keyboard open so the tap lands
 $("imagineSave").addEventListener("click", () => {
   const d = $("imagineIn").value.trim();
   if (!d){ $("imagineIn").focus(); return; }
@@ -1230,8 +1240,8 @@ $("aTidy").addEventListener("click", () => act("tidy"));
 $("aRest").addEventListener("click", () => act("rest"));
 $("aTalk").addEventListener("click", () => { $("pTalk").scrollIntoView({ behavior: "smooth", block: "start" }); $("talkIn").focus({ preventScroll: true }); });
 $("aPlay").addEventListener("click", () => { $("pGames").scrollIntoView({ behavior: "smooth", block: "start" }); });
-$("talkSend").addEventListener("click", sendTalk);
-$("talkIn").addEventListener("keydown", (e) => { if (e.key === "Enter") sendTalk(); });
+$("talkForm").addEventListener("submit", (e) => { e.preventDefault(); sendTalk(); });
+$("talkSend").addEventListener("pointerdown", (e) => e.preventDefault());
 $("gQuit").addEventListener("click", quitGame);
 const hold = (id, k) => { const b = $(id); b.addEventListener("pointerdown", () => keys[k] = true); ["pointerup","pointerleave","pointercancel"].forEach(ev => b.addEventListener(ev, () => keys[k] = false)); };
 hold("gLeft", "left"); hold("gRight", "right");
@@ -1246,16 +1256,22 @@ window.addEventListener("keyup", (e) => { if (e.key === "ArrowLeft") keys.left =
 for (const [id, k] of [["tMem","mem"],["tFacts","facts"],["tAbout","about"]]) $(id).addEventListener("click", () => { coreTab = k; renderCore(); });
 
 // dictation (optional)
+let micWired = false, micTarget = null, micOn = false;
 function wireMic(btnId, inputId){
   const b = $(btnId);
-  let on = false;
   b.addEventListener("click", () => {
     const d = caps.dictation; if (!d) return;
-    if (on){ d.stop().catch(() => {}); return; }
+    if (micOn){ d.stop().catch(() => {}); return; }
     let base = $(inputId).value;
-    d.onPartial(({ text }) => { $(inputId).value = (base ? base + " " : "") + text; });
-    d.onFinal(({ text }) => { base = (base ? base + " " : "") + text; $(inputId).value = base; });
-    d.onState(({ state }) => { on = state === "listening" || state === "starting"; b.textContent = on ? "■" : "🎙"; });
+    const active = { id: inputId };
+    micTarget = active;
+    if (!micWired){
+      micWired = true;
+      d.onPartial(({ text }) => { if (micTarget) $(micTarget.id).value = (micTarget.base ? micTarget.base + " " : "") + text; });
+      d.onFinal(({ text }) => { if (micTarget){ micTarget.base = (micTarget.base ? micTarget.base + " " : "") + text; $(micTarget.id).value = micTarget.base; } });
+      d.onState(({ state }) => { const live = state === "listening" || state === "starting"; document.querySelectorAll("#talkMic,#whisperMic").forEach(x => x.textContent = live ? "■" : "🎙"); micOn = live; });
+    }
+    active.base = base;
     d.start().catch((err) => { if (err && err.code === "not_granted"){ b.hidden = true; } });
   });
 }
