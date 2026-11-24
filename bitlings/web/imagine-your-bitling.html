@@ -63,6 +63,14 @@ textarea{min-height:76px}
 .step b{font-family:var(--display);font-weight:500;color:var(--fg)}
 .tick{flex:none;width:18px;height:18px;border-radius:5px;border:2px solid var(--line);margin-top:2px}
 .step.done .tick{background:var(--green);border-color:var(--green)}
+.gate{background:#13283a;border:1px solid #2b5a72;border-radius:12px;padding:12px;margin-bottom:12px}
+.slots{display:grid;gap:8px}
+.slot{background:#0e1323;border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.slot label{display:block;font-family:var(--display);font-size:12px;color:var(--muted);margin-bottom:4px}
+.slot.done{border-color:#2a5a50}
+.slot .said{color:var(--fg)}
+.slot .react{display:block;color:var(--muted);font-size:13px;font-style:italic;margin-top:2px}
+.slot .sw{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px;border:1px solid #0006}
 .heard{list-style:none;padding:0;margin:0;display:grid;gap:6px}
 .heard li{background:#0e1323;border:1px solid var(--line);border-radius:10px;padding:7px 10px;font-size:14px}
 .heard .said{color:var(--fg)}
@@ -148,15 +156,16 @@ textarea{min-height:76px}
         <div class="step" id="sWhisper"><span class="tick"></span><div><b>Talk to it</b> <span class="muted" id="whisperCount"></span><div class="muted">Tell it about you, your day, what you hope for. It reacts to what you say, and your words shape what it becomes.</div></div></div>
         <div class="step" id="sImagine"><span class="tick"></span><div><b>Imagine it</b><div class="muted">Describe the Bitling you imagine. Add a drawing if you like.</div></div></div>
       </div>
-      <div id="whisperBox" hidden>
-        <div class="field"><label for="whisperIn">Say something to the Seed</label>
-          <form class="row" id="whisperForm" autocomplete="off"><input type="text" id="whisperIn" maxlength="200" enterkeyhint="send" placeholder="I love the ocean at night."><button class="btn" id="whisperMic" type="button" hidden>🎙</button><button class="btn go" id="whisperSend" type="submit">Say it</button></form>
-        </div>
-        <p class="note" id="whisperStatus" aria-live="polite"></p>
+      <div class="gate" id="gate" hidden>
+        <b>Open the box</b>
+        <p class="muted" style="margin:4px 0 8px">claude.ai will ask once if this page may use Claude. That's how the Seed hears you and how your Bitling talks. Answer it now so it doesn't pop up while you're talking.</p>
+        <button class="btn go" id="gateBtn" type="button">Open the box</button>
+        <span class="muted" id="gateNote"></span>
       </div>
-      <div id="heardBox" hidden>
-        <h3 style="font-size:15px;margin:10px 0 4px">What it heard</h3>
-        <ul class="heard" id="whisperList"></ul>
+      <div id="whisperBox">
+        <h3 style="font-size:15px;margin:4px 0 6px">Talk to it</h3>
+        <div class="slots" id="slots"></div>
+        <p class="note" id="whisperStatus" aria-live="polite"></p>
       </div>
       <div id="imagineBox" hidden>
         <div class="field"><label for="imagineIn">What do you imagine?</label>
@@ -288,9 +297,29 @@ async function boot(){
   for (const im of S.egg.imprints || []) if (im.pending){ const l = localImprint(im.said); Object.assign(im, l); delete im.pending; }
   booted = true;
   setSave(docRef ? "Saved" : "Saved in this browser");
-  if (caps.dictation){ $("talkMic").hidden = false; $("whisperMic").hidden = false; }
+  if (caps.dictation){ $("talkMic").hidden = false; }
+  setupGate();
   catchUp();
   render();
+}
+
+/* Ask for Claude up front, so the consent dialog never interrupts talking to the Seed. */
+async function setupGate(){
+  let perms = null;
+  try { perms = window.claude && await window.claude.use("permissions"); } catch(e){}
+  if (!perms || !caps.sample) return;
+  let st = "prompt";
+  try { st = await perms.state("sample"); } catch(e){}
+  if (st !== "prompt" || S.phase !== "seed") return;
+  $("gate").hidden = false;
+  $("gateBtn").onclick = async () => {
+    $("gateBtn").disabled = true; $("gateNote").textContent = " Waiting for your answer…";
+    let res = {};
+    try { res = await perms.request(["sample"]); } catch(e){}
+    $("gate").hidden = true;
+    if (res.sample === "denied") $("whisperStatus").textContent = "Claude isn't allowed, so the Seed will react simply. You can still hatch it.";
+    else $("whisperStatus").textContent = "It can hear you now. Fill in the boxes below.";
+  };
 }
 
 /* While you were away: needs drift, dust piles up, it gets a little lonely. */
@@ -1072,16 +1101,7 @@ function renderSeed(){
   $("sWhisper").classList.toggle("done", e.whispers.length >= 3);
   $("sImagine").classList.toggle("done", !!e.desc);
   $("whisperCount").textContent = "(" + Math.min(3, e.whispers.length) + "/3)";
-  const wl = $("whisperList"); wl.textContent = "";
-  const imps = e.imprints.length ? e.imprints : e.whispers.map(w => ({ said: w, reaction: "" }));
-  $("heardBox").hidden = !imps.length;
-  for (const im of imps.slice().reverse()){
-    const li = document.createElement("li");
-    if (im.color){ const sw = document.createElement("span"); sw.className = "sw"; sw.style.background = im.color; li.append(sw); }
-    const sd = document.createElement("span"); sd.className = "said"; sd.textContent = "“" + im.said + "”"; li.append(sd);
-    if (im.reaction){ const rc = document.createElement("span"); rc.className = "react"; rc.textContent = im.reaction + (im.trait ? "  (" + im.trait + ")" : ""); li.append(rc); }
-    wl.append(li);
-  }
+  renderSlots();
   const ready = prog >= 100 && !!e.desc;
   $("hatchBtn").disabled = !ready || anim.hatching > 0;
   if (anim.hatching <= 0) $("hatchHint").textContent = ready ? "It's ready. It wants to meet you." : "Forming " + prog + "%. Finish all three to hatch.";
@@ -1144,8 +1164,8 @@ function holdEnd(){ if (anim.holding){ anim.holding = false; renderSeed(); sched
 $("eHold").addEventListener("pointerdown", holdStart);
 ["pointerup","pointerleave","pointercancel"].forEach(ev => { $("eHold").addEventListener(ev, holdEnd); cv.addEventListener(ev, holdEnd); });
 window.addEventListener("blur", holdEnd);
-$("eTalk").addEventListener("click", () => { if (!$("whisperBox").hidden && $("whisperIn").value.trim()){ sendWhisper(); return; } $("whisperBox").hidden = false; $("imagineBox").hidden = true; $("whisperBox").scrollIntoView({ behavior: "smooth", block: "center" }); $("whisperIn").focus({ preventScroll: true }); });
-$("eImagine").addEventListener("click", () => { $("imagineBox").hidden = false; $("whisperBox").hidden = true; $("imagineBox").scrollIntoView({ behavior: "smooth", block: "center" }); $("imagineIn").value = S.egg.desc; $("nameIn").value = S.egg.wantName; $("callIn").value = S.egg.callMe; $("imagineIn").focus(); });
+$("eTalk").addEventListener("click", () => { $("imagineBox").hidden = true; $("whisperBox").scrollIntoView({ behavior: "smooth", block: "center" }); const i = document.querySelector("#slots input[data-slot]"); if (i) i.focus({ preventScroll: true }); });
+$("eImagine").addEventListener("click", () => { $("imagineBox").hidden = false; $("imagineBox").scrollIntoView({ behavior: "smooth", block: "center" }); $("imagineIn").value = S.egg.desc; $("nameIn").value = S.egg.wantName; $("callIn").value = S.egg.callMe; $("imagineIn").focus(); });
 const COLOR_WORDS = [["ocean","#4fa8e8"],["sea","#4fa8e8"],["sky","#86cdf2"],["blue","#6fa8ff"],["night","#6b6fd8"],["star","#d9d2ff"],["moon","#e8e4c8"],["sun","#ffd27a"],["fire","#ff8a4c"],["red","#ff7b7b"],["green","#7fe3a2"],["forest","#5fb87a"],["tree","#6fc28a"],["flower","#ff9fc8"],["pink","#ffb0c8"],["purple","#b89bff"],["gold","#ffd27a"],["snow","#eef4ff"],["rain","#8fb4d8"],["music","#c79bff"],["basketball","#ff9c45"],["orange","#ffb36b"],["love","#ff8fb0"],["safe","#9fe0c0"]];
 const TRAIT_WORDS = [["brave","brave"],["safe","protective"],["protect","protective"],["love","loving"],["play","playful"],["fun","playful"],["learn","curious"],["why","curious"],["quiet","gentle"],["sleep","calm"],["run","quick"],["build","inventive"],["music","musical"],["laugh","funny"],["friend","loyal"]];
 function localImprint(text){
@@ -1155,24 +1175,25 @@ function localImprint(text){
   const r = c ? `${/^[aeiou]/.test(c[0]) ? "An" : "A"} ${c[0]}-colored shimmer runs across it.` : t ? `It goes still, as if it's holding the word close.` : `It turns slowly toward your voice.`;
   return { reaction: r, color: c ? c[1] : null, trait: t ? t[1] : null };
 }
-async function sendWhisper(){
-  try { await sendWhisperInner(); }
+async function sendWhisper(text, slotKey){
+  try { await sendWhisperInner(text, slotKey); }
   catch(err){ $("whisperStatus").textContent = "That line didn't land (" + (err && (err.message || err.code) || "unknown error") + "). Try again."; }
 }
-async function sendWhisperInner(){
-  const v = $("whisperIn").value.trim();
-  if (!v){ $("whisperStatus").textContent = "Type something first, then tap Say it."; $("whisperIn").focus(); return; }
+async function sendWhisperInner(text, slotKey){
+  const v = String(text || "").trim();
+  if (!v){ $("whisperStatus").textContent = "Type something in the box first, then tap Say it."; return; }
+  if (S.egg.whispers.length >= 8){ $("whisperStatus").textContent = "It has heard 8 things. That's all it can hold before hatching."; return; }
   if (S.phase !== "seed"){ return; }
   if (!booted) actedBeforeLoad = true;
   const said = v.slice(0, 200);
   S.egg.whispers.push(said); if (S.egg.whispers.length > 8) S.egg.whispers.shift();
   const imp = { said, reaction: "…listening…", color: null, trait: null, pending: true };
   S.egg.imprints.push(imp); if (S.egg.imprints.length > 8) S.egg.imprints.shift();
-  $("whisperIn").value = ""; anim.warm = Math.min(1, anim.warm + 0.4); anim.listen = 1.2;
+  anim.warm = Math.min(1, anim.warm + 0.4); anim.listen = 1.2;
   const n = S.egg.whispers.length;
-  $("whisperStatus").textContent = n < 3 ? `Heard ${n} of 3. Say something else to it.` : `Heard ${n}. That's enough to hatch, but it keeps listening (up to 8).`;
-  $("whisperIn").focus({ preventScroll: true });
+  $("whisperStatus").textContent = n < 3 ? `Heard ${n} of 3. Fill in the next box.` : `Heard ${n}. That's enough to hatch, but it keeps listening (up to 8).`;
   renderSeed(); scheduleSave();
+  const nextIn = document.querySelector("#slots input[data-slot]"); if (nextIn) nextIn.focus({ preventScroll: true });
   let res = null;
   if (caps.sample){
     const before = S.egg.imprints.filter(x => x !== imp && !x.pending).map(x => `- "${x.said}" -> ${x.reaction}`).join("\n");
@@ -1194,14 +1215,72 @@ async function sendWhisperInner(){
   anim.listen = 1.5;
   renderSeed(); scheduleSave();
 }
+const ORD = ["1st","2nd","3rd","4th","5th","6th","7th","8th"];
+const slotDrafts = {};
+function slotReactText(im){ return im.pending ? "…it's listening…" : ((im.reaction || "") + (im.trait ? "  (" + im.trait + ")" : "")); }
+function renderSlots(){
+  const box = $("slots");
+  const e0 = S.egg;
+  const imps0 = e0.whispers.map(w => e0.imprints.find(x => x.said === w) || { said: w, reaction: "" });
+  const total0 = Math.min(8, Math.max(3, imps0.length + (imps0.length >= 3 ? 1 : 0)));
+  const sig = imps0.length + "/" + total0;
+  if (box.dataset.sig === sig){
+    // same boxes: only refresh reactions in place, never touch the input being typed in
+    box.querySelectorAll(".slot.done").forEach((el, i) => {
+      const im = imps0[i]; if (!im) return;
+      const rc = el.querySelector(".react"); if (rc) rc.textContent = slotReactText(im);
+      if (im.color && !el.querySelector(".sw")){ const sw = document.createElement("span"); sw.className = "sw"; sw.style.background = im.color; el.insertBefore(sw, el.querySelector(".said")); }
+    });
+    return;
+  }
+  box.dataset.sig = sig;
+  // keep whatever is half-typed in open boxes across re-renders
+  box.querySelectorAll("input[data-slot]").forEach(i => { slotDrafts[i.dataset.slot] = i.value; });
+  const active = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.slot : null;
+  box.textContent = "";
+  const e = S.egg;
+  const imps = e.whispers.map(w => e.imprints.find(x => x.said === w) || { said: w, reaction: "" });
+  const total = Math.min(8, Math.max(3, imps.length + (imps.length >= 3 ? 1 : 0)));
+  const openCount = total - imps.length;
+  for (let i = 0; i < total; i++){
+    const slot = document.createElement("div");
+    if (i < imps.length){
+      const im = imps[i];
+      slot.className = "slot done";
+      const lb = document.createElement("label"); lb.textContent = ORD[i] + " thing you said"; slot.append(lb);
+      if (im.color){ const sw = document.createElement("span"); sw.className = "sw"; sw.style.background = im.color; slot.append(sw); }
+      const sd = document.createElement("span"); sd.className = "said"; sd.textContent = "“" + im.said + "”"; slot.append(sd);
+      const rc = document.createElement("span"); rc.className = "react";
+      rc.textContent = slotReactText(im);
+      slot.append(rc);
+    } else {
+      const key = "s" + i;
+      slot.className = "slot";
+      const id = "slotIn" + i;
+      const lb = document.createElement("label"); lb.htmlFor = id;
+      lb.textContent = i < 3 ? ORD[i] + " thing to say" : "Say more (optional)";
+      const f = document.createElement("form"); f.className = "row"; f.autocomplete = "off";
+      const inp = document.createElement("input"); inp.type = "text"; inp.id = id; inp.maxLength = 200; inp.dataset.slot = key;
+      inp.setAttribute("enterkeyhint", "send");
+      inp.placeholder = ["I love the ocean at night.", "You can be brave with me.", "I'll keep you safe.", "Tell me what you dream about."][i % 4];
+      inp.value = slotDrafts[key] || "";
+      const bt = document.createElement("button"); bt.className = "btn go"; bt.type = "submit"; bt.textContent = "Say it";
+      bt.addEventListener("pointerdown", (ev) => ev.preventDefault());
+      f.addEventListener("submit", (ev) => { ev.preventDefault(); const v = inp.value; slotDrafts[key] = ""; sendWhisper(v, key); });
+      f.append(inp, bt);
+      slot.append(lb, f);
+      if (active === key) setTimeout(() => inp.focus({ preventScroll: true }), 0);
+    }
+    box.append(slot);
+  }
+}
 function seedTint(){
   const cols = S.egg.imprints.map(x => x.color).filter(Boolean);
   if (!cols.length) return null;
   let r=0,g=0,b=0; for (const c of cols){ const n = parseInt(c.slice(1),16); r += (n>>16)&255; g += (n>>8)&255; b += n&255; }
   const k = cols.length; return "#" + ((1<<24)|(Math.round(r/k)<<16)|(Math.round(g/k)<<8)|Math.round(b/k)).toString(16).slice(1);
 }
-$("whisperForm").addEventListener("submit", (e) => { e.preventDefault(); sendWhisper(); });
-$("whisperSend").addEventListener("pointerdown", (e) => e.preventDefault()); // keep the keyboard open so the tap lands
+
 $("imagineSave").addEventListener("click", () => {
   const d = $("imagineIn").value.trim();
   if (!d){ $("imagineIn").focus(); return; }
@@ -1275,14 +1354,14 @@ function wireMic(btnId, inputId){
     d.start().catch((err) => { if (err && err.code === "not_granted"){ b.hidden = true; } });
   });
 }
-wireMic("talkMic", "talkIn"); wireMic("whisperMic", "whisperIn");
+wireMic("talkMic", "talkIn");
 
 // start over
 $("releaseBtn").addEventListener("click", () => { $("releaseConfirm").hidden = false; });
 $("releaseNo").addEventListener("click", () => { $("releaseConfirm").hidden = true; });
 $("releaseYes").addEventListener("click", () => {
   S = freshState(); game = null; drawingBlob = null; $("drawPrev").hidden = true;
-  $("releaseConfirm").hidden = true; $("whisperBox").hidden = true; $("imagineBox").hidden = true;
+  $("releaseConfirm").hidden = true; $("imagineBox").hidden = true; for (const k in slotDrafts) delete slotDrafts[k]; $("slots").dataset.sig = "";
   anim.hatching = 0; anim.reveal = 0;
   saveNow(); render();
 });
