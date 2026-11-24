@@ -273,7 +273,8 @@ async function boot(){
       docRef = caps.db.collection("data/users/" + uid).doc("bitling");
       storeKind = "db";
       const snap = await docRef.get();
-      if (snap.exists) loaded = snap.data();
+      // the store hands back read-only (frozen) data: work on a deep, editable copy
+      if (snap.exists) loaded = JSON.parse(JSON.stringify(snap.data()));
     }
   } catch(e){ docRef = null; }
   if (!docRef){
