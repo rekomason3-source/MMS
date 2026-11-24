@@ -1,0 +1,1189 @@
+<title>Imagine Your Bitling</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Layout: a night-station "device" (screen + stat strip + buttons) beside stacked panels; one column on phones.
+   Deliberate single look: Kell Island at night, where both palettes meet (green, cyan, amber, steel-blue). */
+:root{
+  --ink:#0c0f1a; --night:#121728; --panel:#171d33; --line:#2a3354; --fg:#e7ecf7; --muted:#9aa6c6;
+  --green:#5df0a0; --cyan:#5fe3ff; --amber:#ffc35c; --steel:#7aa0d8; --rose:#ff7b9c;
+  --display:"Pixelify Sans", "Silkscreen", ui-monospace, Menlo, monospace;
+  --body:"Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --r:10px; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{background:var(--ink);color:var(--fg)}
+body{font-family:var(--body);font-size:15px;line-height:1.5;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:14px 40px}
+h1,h2,h3{font-family:var(--display);font-weight:700;letter-spacing:.02em;text-wrap:balance;margin:0}
+button,input,textarea{font:inherit;color:inherit}
+.top{max-width:1080px;margin:0 auto 14px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
+.top h1{font-size:22px;color:var(--fg)}
+.top h1 span{color:var(--cyan)}
+.chip{font-family:var(--display);font-size:13px;border:1px solid var(--line);border-radius:999px;padding:3px 10px;color:var(--muted);background:var(--night)}
+.wrap{max-width:1080px;margin:0 auto;display:grid;grid-template-columns:minmax(0,420px) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:820px){.wrap{grid-template-columns:minmax(0,1fr)}}
+.device{background:linear-gradient(180deg,#1b2340,#141a2e);border:1px solid var(--line);border-radius:22px;padding:14px;display:flex;flex-direction:column;gap:12px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 10px)}
+@media (max-width:820px){.device{position:static}}
+.screen{position:relative;background:#06080f;border-radius:14px;border:3px solid #0a0d18;overflow:hidden;aspect-ratio:1/1;max-width:100%}
+.screen canvas{width:100%;height:100%;display:block;image-rendering:pixelated;touch-action:none;cursor:pointer}
+.bubble{position:absolute;left:8px;right:8px;top:8px;background:rgba(231,236,247,.95);color:#121728;border-radius:10px;padding:7px 10px;font-size:14px;line-height:1.35;box-shadow:0 2px 0 #0008}
+.bubble small{display:block;color:#4b5678;font-size:11px;font-family:var(--display)}
+.hud{position:absolute;left:8px;bottom:8px;right:8px;display:flex;justify-content:space-between;gap:8px;font-family:var(--display);font-size:12px;color:var(--muted);pointer-events:none}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.meter{background:var(--night);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+.meter label{display:flex;justify-content:space-between;font-family:var(--display);font-size:12px;color:var(--muted)}
+.bar{height:7px;border-radius:4px;background:#0a0d18;overflow:hidden;margin-top:4px}
+.bar i{display:block;height:100%;border-radius:4px;transition:width .4s}
+.lvl{display:flex;align-items:center;gap:10px;font-family:var(--display);font-size:13px;color:var(--muted)}
+.lvl .bar{flex:1;margin:0}
+.btns{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.btn{background:#222a49;border:1px solid #333e68;border-bottom-width:3px;border-radius:10px;padding:9px 8px;font-family:var(--display);font-size:14px;cursor:pointer;color:var(--fg);transition:transform .05s}
+.btn:hover{background:#28315a}
+.btn:active{transform:translateY(2px);border-bottom-width:1px}
+.btn:focus-visible,.tab:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.btn.go{background:var(--green);color:#0b1a12;border-color:#2fae6b}
+.btn.amber{background:var(--amber);color:#2a1a00;border-color:#c48d26}
+.side{display:flex;flex-direction:column;gap:14px;min-width:0}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;min-width:0}
+.panel h2{font-size:18px;margin-bottom:6px}
+.panel p.lead{color:var(--muted);margin:0 0 10px;max-width:62ch}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.tab{background:transparent;border:1px solid var(--line);border-radius:999px;padding:4px 12px;font-family:var(--display);font-size:13px;color:var(--muted);cursor:pointer}
+.tab[aria-selected="true"]{background:var(--cyan);color:#06222b;border-color:var(--cyan)}
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+.field label{font-family:var(--display);font-size:13px;color:var(--muted)}
+input[type=text],textarea{background:#0e1323;border:1px solid var(--line);border-radius:10px;padding:9px 11px;width:100%;resize:vertical}
+textarea{min-height:76px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.row > input[type=text]{flex:1;min-width:0}
+.steps{display:grid;gap:8px;margin:6px 0 12px}
+.step{display:flex;gap:10px;align-items:flex-start;background:var(--night);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.step b{font-family:var(--display);font-weight:500;color:var(--fg)}
+.tick{flex:none;width:18px;height:18px;border-radius:5px;border:2px solid var(--line);margin-top:2px}
+.step.done .tick{background:var(--green);border-color:var(--green)}
+.whispers{list-style:none;padding:0;margin:8px 0 0;display:flex;flex-wrap:wrap;gap:6px}
+.whispers li{background:#0e1323;border:1px dashed var(--line);border-radius:999px;padding:2px 10px;font-size:13px;color:var(--muted)}
+.drawing{display:flex;gap:10px;align-items:center}
+.drawing img{width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+.chat{height:300px;overflow-y:auto;background:#0e1323;border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.msg{max-width:85%;padding:7px 11px;border-radius:12px;font-size:14.5px;overflow-wrap:anywhere}
+.msg.me{align-self:flex-end;background:#2a3560}
+.msg.pet{align-self:flex-start;background:#1c3b35;border:1px solid #2a5a50}
+.msg.sys{align-self:center;background:transparent;color:var(--muted);font-size:12.5px;font-family:var(--display)}
+.games{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.game{background:var(--night);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:6px}
+.game h3{font-size:15px}
+.game p{margin:0;font-size:13.5px;color:var(--muted)}
+.game .meta{font-family:var(--display);font-size:12px;color:var(--amber)}
+.game.locked{opacity:.55}
+.list{margin:0;padding-left:18px;display:grid;gap:4px}
+.list li{font-size:14px}
+.muted{color:var(--muted)}
+.note{font-size:13px;color:var(--muted);margin-top:8px}
+.quiz .q{margin:10px 0 6px;font-weight:700}
+.quiz .opts{display:grid;gap:6px}
+.quiz .opts .btn{text-align:left;font-family:var(--body);font-size:14px}
+.okc{color:var(--green)} .bad{color:var(--rose)}
+.corewrap{display:flex;gap:12px;align-items:center;margin-bottom:8px}
+.core{width:54px;height:54px;border-radius:50%;flex:none;background:conic-gradient(var(--amber) calc(var(--p,0)*1%),#0a0d18 0);display:grid;place-items:center}
+.core::after{content:"";width:38px;height:38px;border-radius:50%;background:var(--panel)}
+.foot{max-width:1080px;margin:18px auto 0;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;font-size:12.5px;color:var(--muted)}
+.linkbtn{background:none;border:none;color:var(--muted);text-decoration:underline;cursor:pointer;padding:0}
+.confirm{background:#2a1520;border:1px solid #6b2a40;border-radius:10px;padding:10px;margin-top:8px}
+@media (prefers-reduced-motion:reduce){.bar i{transition:none}}
+</style>
+
+<header class="top">
+  <h1>Imagine Your <span>Bitling</span></h1>
+  <div class="row"><span class="chip" id="whoChip">Kell Island · night</span><span class="chip" id="saveChip">Loading…</span></div>
+</header>
+
+<main class="wrap">
+  <section class="device" aria-label="Your Bitling">
+    <div class="screen">
+      <canvas id="cv" width="256" height="256" aria-label="Your Bitling's screen"></canvas>
+      <div class="bubble" id="bubble" hidden><small id="bubbleWho"></small><span id="bubbleText"></span></div>
+      <div class="hud"><span id="hudL"></span><span id="hudR"></span></div>
+    </div>
+    <div class="stats" id="stats">
+      <div class="meter"><label><span>Charge</span><span id="vCharge"></span></label><div class="bar"><i id="bCharge" style="background:var(--cyan)"></i></div></div>
+      <div class="meter"><label><span>Mood</span><span id="vMood"></span></label><div class="bar"><i id="bMood" style="background:var(--green)"></i></div></div>
+      <div class="meter"><label><span>Tidy</span><span id="vTidy"></span></label><div class="bar"><i id="bTidy" style="background:var(--amber)"></i></div></div>
+    </div>
+    <div class="lvl" id="lvlRow"><span id="lvlText">Lv 1</span><div class="bar"><i id="bXp" style="background:var(--amber)"></i></div><span id="xpText"></span></div>
+    <div class="btns" id="petBtns">
+      <button class="btn" id="aCharge" type="button">Charge</button>
+      <button class="btn" id="aPet" type="button">Pet</button>
+      <button class="btn" id="aTidy" type="button">Tidy</button>
+      <button class="btn" id="aRest" type="button">Rest</button>
+      <button class="btn" id="aTalk" type="button">Talk</button>
+      <button class="btn amber" id="aPlay" type="button">Play</button>
+    </div>
+    <div class="btns" id="eggBtns" hidden>
+      <button class="btn" id="eHold" type="button">Hold it</button>
+      <button class="btn" id="eTalk" type="button">Talk to it</button>
+      <button class="btn" id="eImagine" type="button">Imagine it</button>
+    </div>
+    <div class="btns" id="gameBtns" hidden>
+      <button class="btn" id="gLeft" type="button">◀</button>
+      <button class="btn amber" id="gQuit" type="button">Quit game</button>
+      <button class="btn" id="gRight" type="button">▶</button>
+    </div>
+  </section>
+
+  <div class="side">
+    <!-- SEED (egg) phase -->
+    <section class="panel" id="pSeed" hidden>
+      <h2>A Seed arrived</h2>
+      <p class="lead">It came in a plain white box: soft, grey and shapeless, a little bigger than a cat. The card says <i>Your Bitling will love you. It will protect you. The rest, you must imagine.</i> Keep it warm, talk to it, and imagine what it will become.</p>
+      <div class="steps">
+        <div class="step" id="sWarm"><span class="tick"></span><div><b>Hold it</b><div class="muted">Press and hold the Seed (or the button) to keep it warm.</div></div></div>
+        <div class="step" id="sWhisper"><span class="tick"></span><div><b>Talk to it</b> <span class="muted" id="whisperCount"></span><div class="muted">Tell it about you, your day, what you hope for. It listens while it forms.</div></div></div>
+        <div class="step" id="sImagine"><span class="tick"></span><div><b>Imagine it</b><div class="muted">Describe the Bitling you imagine. Add a drawing if you like.</div></div></div>
+      </div>
+      <div id="whisperBox" hidden>
+        <div class="field"><label for="whisperIn">Say something to the Seed</label>
+          <div class="row"><input type="text" id="whisperIn" maxlength="200" placeholder="I'm going to keep you safe."><button class="btn" id="whisperMic" type="button" hidden>🎙</button><button class="btn go" id="whisperSend" type="button">Say it</button></div>
+        </div>
+        <ul class="whispers" id="whisperList"></ul>
+      </div>
+      <div id="imagineBox" hidden>
+        <div class="field"><label for="imagineIn">What do you imagine?</label>
+          <textarea id="imagineIn" maxlength="600" placeholder="A round owl with a little lantern glowing in its chest. Shy, but curious about everything. Amber ear tufts and a blue scarf."></textarea></div>
+        <div class="row">
+          <div class="field" style="flex:1;min-width:160px"><label for="nameIn">Its name (optional)</label><input type="text" id="nameIn" maxlength="24" placeholder="Let it choose"></div>
+          <div class="field" style="flex:1;min-width:160px"><label for="callIn">What should it call you?</label><input type="text" id="callIn" maxlength="24" placeholder="Your name or nickname"></div>
+        </div>
+        <div class="field" id="drawField"><label for="drawIn">Your drawing (optional)</label>
+          <div class="drawing"><input type="file" id="drawIn" accept="image/*"><img id="drawPrev" alt="Your drawing" hidden></div></div>
+        <button class="btn go" id="imagineSave" type="button">Keep this picture in mind</button>
+      </div>
+      <div class="row" style="margin-top:12px"><button class="btn go" id="hatchBtn" type="button" disabled>Hatch</button><span class="muted" id="hatchHint">Finish all three to hatch.</span></div>
+    </section>
+
+    <!-- TALK -->
+    <section class="panel" id="pTalk" hidden>
+      <h2 id="talkTitle">Talk</h2>
+      <p class="lead" id="talkLead">It remembers what matters. Tell it things and it learns who you are.</p>
+      <div class="chat" id="chat" aria-live="polite"></div>
+      <div class="row" style="margin-top:8px"><input type="text" id="talkIn" maxlength="400" placeholder="Say something…"><button class="btn" id="talkMic" type="button" hidden>🎙</button><button class="btn go" id="talkSend" type="button">Send</button></div>
+      <div class="note" id="talkNote"></div>
+    </section>
+
+    <!-- GAMES -->
+    <section class="panel" id="pGames" hidden>
+      <h2>Play</h2>
+      <p class="lead">New games unlock as your Bitling levels up, and as it learns more about you.</p>
+      <div class="games" id="gameList"></div>
+      <div class="quiz" id="quiz" hidden></div>
+    </section>
+
+    <!-- CORE -->
+    <section class="panel" id="pCore" hidden>
+      <h2>Core</h2>
+      <div class="corewrap"><div class="core" id="coreRing"></div><div><b id="coreTitle">Core</b><div class="muted" id="coreText"></div></div></div>
+      <div class="tabs" role="tablist">
+        <button class="tab" id="tMem" role="tab" aria-selected="true" type="button">Shared memories</button>
+        <button class="tab" id="tFacts" role="tab" aria-selected="false" type="button">What it knows about you</button>
+        <button class="tab" id="tAbout" role="tab" aria-selected="false" type="button">About it</button>
+      </div>
+      <div id="coreBody"></div>
+    </section>
+  </div>
+</main>
+
+<footer class="foot">
+  <span id="footNote">Your Bitling and what it remembers are private to you.</span>
+  <span><button class="linkbtn" id="releaseBtn" type="button">Start over with a new Seed</button></span>
+</footer>
+<div class="foot" id="releaseConfirm" hidden><div class="confirm">Start over? Your Bitling and all its memories will be erased. <button class="btn" id="releaseYes" type="button">Erase and start over</button> <button class="btn" id="releaseNo" type="button">Keep it</button></div></div>
+
+<script>
+(function(){
+"use strict";
+const $ = (id) => document.getElementById(id);
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const now = () => Date.now();
+const HEX = /^#[0-9a-fA-F]{6}$/;
+
+/* ------------------------------------------------------------------ state */
+const VERSION = 1;
+function freshState(){
+  return { v: VERSION, phase: "seed", created: now(), lastSeen: now(),
+    egg: { warm: 0, whispers: [], desc: "", wantName: "", callMe: "", hasDrawing: false },
+    pet: null, charge: 80, mood: 70, dust: 0, level: 1, xp: 0, sleeping: false,
+    memories: [], facts: [], chat: [], best: {}, stats: { talks: 0, games: 0, pets: 0 } };
+}
+let S = freshState();
+let caps = { db: null, sample: null, user: null, dictation: null };
+let docRef = null, storeKind = "none";
+
+/* ------------------------------------------------------------------ storage */
+const LSKEY = "iyb-state-v1";
+let saveTimer = null, saving = false, saveAgain = false;
+function scheduleSave(){ clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 1200); }
+async function saveNow(){
+  if (saving){ saveAgain = true; return; }
+  saving = true;
+  S.lastSeen = now();
+  const data = JSON.parse(JSON.stringify(S));
+  try {
+    if (docRef){ await docRef.set(data); setSave("Saved"); }
+    else { try { localStorage.setItem(LSKEY, JSON.stringify(data)); setSave("Saved in this browser"); } catch(e){ setSave("Not saved"); } }
+  } catch(e){ setSave("Save failed. Retrying soon"); setTimeout(scheduleSave, 8000); }
+  saving = false;
+  if (saveAgain){ saveAgain = false; scheduleSave(); }
+}
+function setSave(t){ $("saveChip").textContent = t; }
+
+async function boot(){
+  render();
+  loop();
+  const c = window.claude;
+  if (c && c.use){
+    try { caps.sample = await c.use("sample"); } catch(e){}
+    try { caps.user = await c.use("user"); } catch(e){}
+    try { caps.db = await c.use("db"); } catch(e){}
+    try { caps.dictation = await c.use("dictation"); } catch(e){}
+  }
+  let loaded = null;
+  try {
+    const uid = caps.user ? await caps.user.id() : null;
+    if (caps.db && uid){
+      docRef = caps.db.collection("data/users/" + uid).doc("bitling");
+      storeKind = "db";
+      const snap = await docRef.get();
+      if (snap.exists) loaded = snap.data();
+    }
+  } catch(e){ docRef = null; }
+  if (!docRef){
+    storeKind = "local";
+    try { const raw = localStorage.getItem(LSKEY); if (raw) loaded = JSON.parse(raw); } catch(e){}
+    $("footNote").textContent = "Saving to your claude.ai account isn't available here, so progress is kept in this browser only.";
+  }
+  if (loaded && loaded.v === VERSION) S = Object.assign(freshState(), loaded);
+  setSave(docRef ? "Saved" : "Saved in this browser");
+  if (caps.dictation){ $("talkMic").hidden = false; $("whisperMic").hidden = false; }
+  catchUp();
+  render();
+}
+
+/* While you were away: needs drift, dust piles up, it gets a little lonely. */
+function catchUp(){
+  const hrs = (now() - (S.lastSeen || now())) / 3600000;
+  if (S.phase !== "pet" || hrs < 0.25) return;
+  const h = Math.min(hrs, 48);
+  S.charge = clamp(S.charge - h * 6, 5, 100);
+  S.mood = clamp(S.mood - h * 4, 10, 100);
+  S.dust = clamp(S.dust + Math.floor(h * 0.7), 0, 6);
+  S.sleeping = false;
+  const p = S.pet;
+  const likes = (p.likes && p.likes.length) ? p.likes[Math.floor(Math.random()*p.likes.length)] : "the lighthouse";
+  const sweeps = Math.round(h * 60 * 4);
+  const lines = [
+    `You were gone ${fmtHrs(hrs)}. I counted about ${sweeps} lighthouse sweeps and saved you a spot by the lamp.`,
+    `${fmtHrs(hrs)}! I practiced being brave. I also thought about ${likes} a lot.`,
+    `You're back! The radio played the weather ${Math.max(1,Math.round(h/6))} times while you were away. I listened for you.`,
+  ];
+  if (hrs > 0.25) say(lines[Math.floor(Math.random()*lines.length)], 7000);
+  scheduleSave();
+}
+function fmtHrs(h){ if (h < 1) return Math.round(h*60) + " minutes"; if (h < 48) return Math.round(h) + " hours"; return Math.round(h/24) + " days"; }
+
+/* ------------------------------------------------------------------ progression */
+function xpNeed(l){ return 40 * l; }
+function gainXp(n){
+  if (S.phase !== "pet") return;
+  S.xp += n;
+  let up = false;
+  while (S.xp >= xpNeed(S.level)){ S.xp -= xpNeed(S.level); S.level++; up = true; }
+  if (up){
+    anim.happy = 2.5;
+    const g = GAMES.find(g => g.minLevel === S.level);
+    say(`Level ${S.level}!` + (g ? ` We can play ${g.name} now!` : " I feel bigger inside."), 5000);
+    addMemory(`Reached level ${S.level} together.`, true);
+  }
+  scheduleSave(); render();
+}
+function addMemory(text, quiet){
+  text = String(text || "").trim().slice(0, 160);
+  if (!text) return;
+  if (S.memories.some(m => m.t.toLowerCase() === text.toLowerCase())) return;
+  S.memories.push({ t: text, at: now() });
+  if (S.memories.length > 40) S.memories.shift();
+  if (!quiet) toastSys("A new memory went into its Core.");
+  scheduleSave();
+}
+function addFact(text){
+  text = String(text || "").trim().slice(0, 120);
+  if (!text) return false;
+  if (S.facts.some(f => f.t.toLowerCase() === text.toLowerCase())) return false;
+  S.facts.push({ t: text, at: now() });
+  if (S.facts.length > 30) S.facts.shift();
+  scheduleSave();
+  return true;
+}
+const CORE_FULL = 12;
+function coreFill(){ return clamp(S.memories.length / CORE_FULL, 0, 1); }
+
+/* ------------------------------------------------------------------ sprite generator */
+// 32x32 pixel Bitling built from parts, following the design language:
+// toy-like silhouette, hex-panel skin, glowing lens eyes, glowing chest core.
+const N = 32;
+function mix(a, b, t){
+  const pa = parseInt(a.slice(1),16), pb = parseInt(b.slice(1),16);
+  const r = Math.round(((pa>>16)&255)*(1-t) + ((pb>>16)&255)*t);
+  const g = Math.round(((pa>>8)&255)*(1-t) + ((pb>>8)&255)*t);
+  const bl = Math.round((pa&255)*(1-t) + (pb&255)*t);
+  return "#" + ((1<<24)|(r<<16)|(g<<8)|bl).toString(16).slice(1);
+}
+const BODY = {
+  round: { cx: 16, cy: 19, rx: 10, ry: 9.5 },
+  tall:  { cx: 16, cy: 18, rx: 7.5, ry: 11.5 },
+  long:  { cx: 16, cy: 19.5, rx: 12.5, ry: 7 },
+  small: { cx: 16, cy: 21, rx: 7.5, ry: 7 },
+};
+function buildSprite(p, pose){
+  const px = new Array(N*N).fill(null);
+  const put = (x,y,c) => { x|=0; y|=0; if (x>=0 && y>=0 && x<N && y<N) px[y*N+x] = c; };
+  const get = (x,y) => (x>=0 && y>=0 && x<N && y<N) ? px[y*N+x] : null;
+  const ell = (cx,cy,rx,ry,c) => { for (let y=0;y<N;y++) for (let x=0;x<N;x++){ const dx=(x+.5-cx)/rx, dy=(y+.5-cy)/ry; if (dx*dx+dy*dy<=1) put(x,y,c); } };
+  const pal = p.palette, b = BODY[p.body] || BODY.round;
+  const { cx, cy, rx, ry } = b;
+  const shade = pal.shade, acc = pal.accent;
+  const f = pose.frame || 0;
+  const top = Math.round(cy - ry);
+
+  // tail (behind, left side)
+  const tx = Math.round(cx - rx), ty = Math.round(cy + 2);
+  if (p.tail === "short") ell(tx, ty+1, 2.4, 2.2, shade);
+  else if (p.tail === "long" || p.tail === "mist" || p.tail === "flame"){
+    for (let t=0; t<9; t++){
+      const x = tx - t, y = ty + 2 - Math.floor(t*t/9) + (p.tail==="mist" ? Math.round(Math.sin((f*0.25)+t*0.8)) : 0);
+      if (p.tail === "mist" && t > 4 && (t + f) % 2) continue;
+      const c = p.tail === "flame" ? (t > 5 ? pal.core : acc) : (t > 6 ? acc : shade);
+      put(x, y, c); put(x, y+1, c);
+      if (t < 4) put(x, y-1, c);
+    }
+  }
+  // wings (behind)
+  if (p.extra === "wings"){
+    const flap = Math.round(Math.sin(f*0.5)) ;
+    ell(cx - rx + 1, cy - 1 - flap, 3, 4.5, shade); ell(cx + rx - 1, cy - 1 - flap, 3, 4.5, shade);
+    put(cx - rx - 1, cy - 4 - flap, acc); put(cx + rx + 1, cy - 4 - flap, acc);
+  }
+  // legs
+  if (p.body === "long"){
+    for (const lx of [cx-8, cx-4, cx+4, cx+8]){ put(lx, cy+ry, shade); put(lx, cy+ry+1, shade); put(lx+1, cy+ry+1, shade); }
+  } else {
+    for (const lx of [cx-4, cx+3]){ put(lx, cy+ry, shade); put(lx+1, cy+ry, shade); put(lx, cy+ry+0.9, shade); put(lx+1, cy+ry+0.9, shade); }
+  }
+  // ears / top features
+  const ex1 = Math.round(cx - Math.max(3, rx*0.55)), ex2 = Math.round(cx + Math.max(3, rx*0.55) - 1);
+  if (p.ears === "tufts"){
+    for (const x of [ex1, ex2]){ put(x, top-1, pal.body); put(x, top-2, pal.body); put(x, top-3, acc); put(x+(x<cx?-1:1), top-3, acc); }
+  } else if (p.ears === "long"){
+    for (const x of [ex1, ex2]) ell(x+0.5, top-3.5, 1.6, 4.5, pal.body);
+    for (const x of [ex1, ex2]){ put(x, top-5, acc); put(x, top-4, acc); }
+  } else if (p.ears === "round"){
+    for (const x of [ex1, ex2]){ ell(x+0.5, top+0.5, 2.6, 2.6, pal.body); put(x, top, acc); }
+  } else if (p.ears === "fins"){
+    for (let i=0;i<4;i++){ put(cx-rx-1-i, cy-3+i, acc); put(cx+rx+i, cy-3+i, acc); put(cx-rx-1-i, cy-2+i, shade); put(cx+rx+i, cy-2+i, shade); }
+  } else if (p.ears === "horns"){
+    for (const x of [ex1, ex2]){ put(x, top-1, acc); put(x+(x<cx?-1:1), top-2, acc); }
+  }
+  // body
+  ell(cx, cy, rx, ry, pal.body);
+  // shading + hex-panel hint
+  for (let y=0;y<N;y++) for (let x=0;x<N;x++){
+    const dx=(x+.5-cx)/rx, dy=(y+.5-cy)/ry;
+    if (dx*dx+dy*dy>1) continue;
+    if (dx*0.45 + dy > 0.6) put(x,y,shade);
+    else if (y % 3 === 0 && ((x + (y % 6 === 0 ? 0 : 2)) % 4 === 0) && dy > -0.55) put(x,y, mix(pal.body, shade, 0.45));
+  }
+  // extras on body
+  const ey = Math.round(cy - ry*0.25);
+  if (p.extra === "scarf"){
+    for (let x=Math.round(cx-rx+1); x<=Math.round(cx+rx-1); x++){ if (get(x,ey+4)) put(x, ey+4, acc); if (get(x,ey+5)) put(x, ey+5, mix(acc,"#000000",0.25)); }
+    put(cx-rx+1, ey+6, acc); put(cx-rx, ey+7, acc);
+  } else if (p.extra === "crest"){
+    for (let i=-2;i<=2;i++) put(cx+i, top-1-(2-Math.abs(i))*0.6, acc);
+  } else if (p.extra === "antenna"){
+    for (let i=1;i<=4;i++) put(cx, top-i, shade);
+    put(cx, top-5, (f % 20) < 10 ? pal.core : acc);
+  } else if (p.extra === "shell"){
+    for (let i=0;i<6;i++){ put(cx-2+i, top+1, acc); }
+    for (let i=0;i<4;i++){ put(cx-rx+2+i, cy-4+i, acc); }
+  }
+  // core (chest): brighter with mood
+  const coreY = Math.round(cy + ry*0.35);
+  const bright = pose.glow || 0;
+  ell(cx, coreY, 2.3, 2.3, mix(pal.core, "#ffffff", 0.1 + bright*0.3));
+  put(cx-1, coreY-1, mix(pal.core, "#ffffff", 0.55 + bright*0.3));
+  // eyes
+  const exs = [Math.round(cx - Math.max(2.5, rx*0.42)) - 1, Math.round(cx + Math.max(2.5, rx*0.42))];
+  const dark = "#121626";
+  for (const x of exs){
+    if (pose.eyes === "closed"){ put(x, ey+1, dark); put(x+1, ey+1, dark); }
+    else if (pose.eyes === "happy"){ put(x, ey+1, dark); put(x+1, ey, dark); put(x+2, ey+1, dark); }
+    else {
+      const w = p.eyeShape === "wide" ? 3 : 2, h = p.eyeShape === "sleepy" ? 1 : (p.eyeShape === "oval" ? 3 : 2);
+      for (let yy=0; yy<h; yy++) for (let xx=0; xx<w; xx++) put(x+xx, ey+yy - (h>2?1:0), pal.eyes);
+      put(x, ey - (h>2?1:0), "#ffffff");
+    }
+  }
+  if (pose.blush){ put(exs[0]-1, ey+2, "#ff8fb0"); put(exs[1]+2, ey+2, "#ff8fb0"); }
+  // outline
+  const out = px.slice();
+  for (let y=0;y<N;y++) for (let x=0;x<N;x++){
+    if (px[y*N+x]) continue;
+    if (get(x-1,y) || get(x+1,y) || get(x,y-1) || get(x,y+1)) out[y*N+x] = dark;
+  }
+  return out;
+}
+const spriteCanvas = document.createElement("canvas"); spriteCanvas.width = N; spriteCanvas.height = N;
+const sctx = spriteCanvas.getContext("2d");
+function paintSprite(pixels){
+  sctx.clearRect(0,0,N,N);
+  for (let i=0;i<pixels.length;i++){ const c = pixels[i]; if (!c) continue; sctx.fillStyle = c; sctx.fillRect(i%N, (i/N)|0, 1, 1); }
+  return spriteCanvas;
+}
+
+/* Fallback spec from keywords when Claude isn't available */
+function localSpec(desc, wantName){
+  const d = (desc || "").toLowerCase();
+  const has = (...w) => w.some(x => new RegExp("\\b" + x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).test(d));
+  const colors = [["blue","#7fb6ff"],["green","#7fe3a2"],["pink","#ffb0c8"],["purple","#b89bff"],["red","#ff8a7a"],["orange","#ffb36b"],["yellow","#ffe27a"],["white","#eef0f7"],["black","#4a4f66"],["grey","#b9bccb"],["gray","#b9bccb"],["gold","#ffd27a"]];
+  const body = (colors.find(c => has(c[0])) || ["", "#e9e6f0"])[1];
+  return sanitizeSpec({
+    name: wantName || ["Pip","Lumo","Tik","Wren","Moss","Ember"][Math.floor(Math.random()*6)],
+    body: has("tall","owl","upright") ? "tall" : has("fox","cat","dog","long") ? "long" : has("tiny","small","little") ? "small" : "round",
+    ears: has("owl","tuft") ? "tufts" : has("bunny","rabbit","long ear") ? "long" : has("bear","mouse","round ear") ? "round" : has("fish","fin") ? "fins" : has("horn","dragon") ? "horns" : "round",
+    tail: has("mist","cloud") ? "mist" : has("fire","flame") ? "flame" : has("tail","fox","cat","dragon") ? "long" : "short",
+    extra: has("wing") ? "wings" : has("scarf") ? "scarf" : has("antenna","radio") ? "antenna" : has("shell","armor","tile") ? "shell" : has("crest") ? "crest" : "none",
+    eyeShape: has("sleepy") ? "sleepy" : has("big eye","wide") ? "wide" : "round",
+    palette: { body, shade: mix(body, "#3a3f5a", 0.35), core: has("lantern","lamp","fire") ? "#ffd27a" : "#7ff5c8", eyes: "#5fe3ff", accent: has("amber") ? "#ffc35c" : "#7aa0d8" },
+    nature: "A brand-new Bitling, still working out who it is.",
+    traits: ["curious","gentle","brave"], voice: "short, warm and a little shy", likes: ["the lighthouse","your voice"], dislikes: ["the dark"],
+    power_seed: "Something will grow out of who it is.", first_words: "...hi. I know your voice."
+  });
+}
+const ENUMS = { body:["round","tall","long","small"], ears:["none","tufts","long","round","fins","horns"], tail:["none","short","long","mist","flame"], extra:["none","wings","crest","antenna","scarf","shell"], eyeShape:["round","oval","sleepy","wide"] };
+function sanitizeSpec(s){
+  s = (s && typeof s === "object") ? s : {};
+  const pick = (k) => ENUMS[k].includes(s[k]) ? s[k] : ENUMS[k][k === "ears" ? 3 : 0];
+  const pal = s.palette || {};
+  const col = (v, d) => (typeof v === "string" && HEX.test(v)) ? v.toLowerCase() : d;
+  const body = col(pal.body, "#e9e6f0");
+  const str = (v, d, n) => (typeof v === "string" && v.trim()) ? v.trim().slice(0, n) : d;
+  const arr = (v, n) => Array.isArray(v) ? v.filter(x => typeof x === "string").map(x => x.slice(0, 40)).slice(0, n) : [];
+  return {
+    name: str(s.name, "Pip", 24), body: pick("body"), ears: pick("ears"), tail: pick("tail"), extra: pick("extra"), eyeShape: pick("eyeShape"),
+    palette: { body, shade: col(pal.shade, mix(body, "#3a3f5a", 0.35)), core: col(pal.core, "#ffd27a"), eyes: col(pal.eyes, "#5fe3ff"), accent: col(pal.accent, "#ffc35c") },
+    nature: str(s.nature, "A new Bitling.", 160), traits: arr(s.traits, 3), voice: str(s.voice, "warm and short", 80),
+    likes: arr(s.likes, 3), dislikes: arr(s.dislikes, 2), power_seed: str(s.power_seed, "", 160), first_words: str(s.first_words, "Hi.", 140),
+  };
+}
+
+/* ------------------------------------------------------------------ hatching */
+let drawingBlob = null, drawingUrl = null;
+const PROG = () => {
+  const e = S.egg;
+  const warm = Math.min(40, e.warm), wh = Math.min(36, e.whispers.length * 12), im = e.desc ? 24 : 0, dr = e.hasDrawing ? 12 : 0;
+  return Math.min(100, warm + wh + im + dr);
+};
+async function hatch(){
+  const btn = $("hatchBtn");
+  btn.disabled = true; $("hatchHint").textContent = "It's changing… this can take up to a minute.";
+  anim.hatchCap = 0.8; anim.hatching = 0.01;
+  const e = S.egg;
+  let spec = null, viaClaude = false;
+  if (caps.sample){
+    const prompt = [
+      "You are designing a newborn Bitling for the game \"Imagine Your Bitling\".",
+      "World rules: Bitlings are plush companions built from nanites and shaped by a caretaker's imagination. Toy-like rounded silhouettes (never realistic animal anatomy), soft skin of small hex panels, glowing lens eyes (no realistic pupils, noses or beaks), and a softly glowing core in the chest.",
+      "This one formed on Kell Island, the small neutral island whose radio station belongs to nobody, from a soft grey Seed its caretaker held, talked to and imagined.",
+      "Caretaker's description: \"\"\"" + e.desc + "\"\"\"",
+      "What the caretaker said to the Seed while it formed:\n" + (e.whispers.map(w => "- " + w).join("\n") || "- (nothing)"),
+      "Name the caretaker chose: " + (e.wantName || "none, so choose a short, original, easy-to-say name"),
+      "The caretaker wants to be called: " + (e.callMe || "(not given)"),
+      drawingBlob ? "The attached image is the caretaker's own drawing of it. Match its shape, features and colors as closely as the options allow." : "",
+      "Pick the closest options. Reply with ONLY a JSON object like:",
+      '{"name":"Lumo","body":"round|tall|long|small","ears":"none|tufts|long|round|fins|horns","tail":"none|short|long|mist|flame","extra":"none|wings|crest|antenna|scarf|shell","eyeShape":"round|oval|sleepy|wide","palette":{"body":"#e9e6f0","shade":"#a9a6c0","core":"#ffd27a","eyes":"#5fe3ff","accent":"#ffc35c"},"nature":"one sentence about what it is at heart","traits":["three","single","words"],"voice":"how it talks, a few words","likes":["two or three things"],"dislikes":["one or two"],"power_seed":"one sentence: the signature power that might one day grow out of who it is","first_words":"its first words to the caretaker, under 20 words, shaped by what they said to the Seed"}',
+      "Colors must be 6-digit hex. Body color light enough to read on a dark night background. Keep everything kind and age-appropriate."
+    ].filter(Boolean).join("\n\n");
+    try {
+      const opts = { modelTier: "default" };
+      if (drawingBlob) opts.images = [drawingBlob];
+      spec = sanitizeSpec(await caps.sample.json(prompt, opts));
+      viaClaude = true;
+    } catch(err){
+      if (err && err.code === "images_unavailable" || err && err.code === "image_rejected"){
+        try { spec = sanitizeSpec(await caps.sample.json(prompt.replace(/The attached image[^\n]*\n?/, ""), { modelTier: "default" })); viaClaude = true; } catch(e2){}
+      }
+      if (!spec) $("hatchHint").textContent = errCopy(err) + " Hatching with what it heard instead.";
+    }
+  }
+  if (!spec) spec = localSpec(e.desc, e.wantName);
+  if (e.wantName) spec.name = e.wantName.slice(0, 24);
+  anim.hatchCap = 1;
+  await waitHatchAnim();
+  S.pet = spec; S.phase = "pet"; S.hatchedAt = now();
+  S.charge = 85; S.mood = 85; S.dust = 0; S.level = 1; S.xp = 0;
+  S.chat = [{ r: "pet", t: spec.first_words }];
+  addMemory("The day I hatched. " + (e.callMe ? e.callMe + " was" : "You were") + " the first thing I saw.", true);
+  for (const w of e.whispers.slice(0, 2)) addMemory("Before I hatched, you told me: \"" + w.slice(0, 100) + "\"", true);
+  if (!viaClaude) S.chat.push({ r: "sys", t: "Hatched without Claude, so its talk will be simple until Claude is allowed on this page." });
+  anim.hatching = 0; anim.reveal = 1; anim.happy = 3;
+  say(spec.first_words, 7000);
+  scheduleSave(); render();
+}
+let hatchResolve = null;
+function waitHatchAnim(){ return new Promise(r => { if (anim.hatching >= 1) r(); else hatchResolve = r; }); }
+
+/* ------------------------------------------------------------------ talking */
+let talkBusy = false;
+async function sendTalk(){
+  const inp = $("talkIn");
+  const text = inp.value.trim();
+  if (!text || talkBusy || S.phase !== "pet") return;
+  inp.value = "";
+  S.chat.push({ r: "me", t: text.slice(0, 400) });
+  trimChat(); renderChat();
+  if (S.sleeping){ S.sleeping = false; }
+  if (!caps.sample){
+    const canned = ["*tilts its head and listens*", "Mm! Tell me more.", "*its core flickers happily*"];
+    S.chat.push({ r: "pet", t: canned[Math.floor(Math.random()*canned.length)] });
+    gainXp(2); renderChat(); scheduleSave(); return;
+  }
+  talkBusy = true; $("talkSend").disabled = true; $("talkNote").textContent = S.pet.name + " is thinking…";
+  anim.think = 1;
+  const p = S.pet;
+  const hist = S.chat.slice(-14, -1).filter(m => m.r !== "sys").map(m => (m.r === "me" ? "Caretaker" : p.name) + ": " + m.t).join("\n");
+  const prompt = [
+    `You are ${p.name}, a Bitling at the Bit stage, living with your caretaker on Kell Island (a small neutral island; its radio station belongs to nobody and everyone who comes through the door is a guest; a lighthouse sweeps the harbor at night).`,
+    `Who you are: ${p.nature} Traits: ${p.traits.join(", ")}. You talk like this: ${p.voice}. Likes: ${p.likes.join(", ")}. Dislikes: ${p.dislikes.join(", ")}.`,
+    `Your caretaker likes to be called: ${S.egg.callMe || "(unknown; you may ask once, gently)"}.`,
+    `Right now: charge ${Math.round(S.charge)}/100, mood ${Math.round(S.mood)}/100, level ${S.level}${S.dust > 2 ? ", there is nanite dust around you" : ""}.`,
+    "Shared memories (the ONLY past events you remember):\n" + (S.memories.slice(-20).map(m => "- " + m.t).join("\n") || "- none yet"),
+    "What you know about your caretaker (the ONLY facts you know):\n" + (S.facts.map(f => "- " + f.t).join("\n") || "- nothing yet"),
+    "Rules: Stay in character. Reply in 1 to 3 short sentences, warm and specific, in your own voice. Use what you know about them naturally, and ask small curious questions to learn more. Never invent memories or facts that aren't listed; if asked about something you don't remember, say so kindly. If they sincerely ask whether you are real or an AI, be honest that you are a game character played with Claude, then stay warm. Never ask for addresses, schools, passwords, phone numbers or other private details. Keep it kind and age-appropriate.",
+    "Conversation so far:\n" + (hist || "(this is the start)"),
+    `Caretaker: ${text}`,
+    'Reply with ONLY a JSON object: {"reply":"what you say","emote":"happy|curious|shy|sad|sleepy|excited|calm","mood":0,"new_fact":null,"memory":null}. "mood" is an integer from -5 to 10 for how this made you feel. "new_fact" is a short third-person fact the caretaker JUST shared about themselves (e.g. "Plays basketball on weekends"), or null. "memory" is one short sentence ONLY when this exchange is a real bond moment (a first, a feeling shared, a promise), otherwise null. Most messages have no memory.'
+  ].join("\n\n");
+  try {
+    const res = await caps.sample.json(prompt, { modelTier: "quick", cache: false });
+    const reply = (res && typeof res.reply === "string" && res.reply.trim()) ? res.reply.trim().slice(0, 500) : "*listens closely*";
+    S.chat.push({ r: "pet", t: reply });
+    const md = Number.isFinite(res && res.mood) ? clamp(Math.round(res.mood), -5, 10) : 2;
+    S.mood = clamp(S.mood + md, 0, 100);
+    setEmote(res && res.emote);
+    let learned = false;
+    if (res && typeof res.new_fact === "string" && res.new_fact.trim()) learned = addFact(res.new_fact);
+    if (res && typeof res.memory === "string" && res.memory.trim()) addMemory(res.memory);
+    S.stats.talks++;
+    gainXp(4 + (learned ? 3 : 0));
+    if (learned){
+      S.chat.push({ r: "sys", t: p.name + " learned something about you." });
+      const q = GAMES.find(g => g.id === "remember");
+      if (S.facts.length === q.minFacts) S.chat.push({ r: "sys", t: "New game unlocked: Do You Remember?" });
+    }
+    $("talkNote").textContent = "";
+  } catch(err){
+    S.chat.push({ r: "sys", t: errCopy(err) });
+    $("talkNote").textContent = "";
+  }
+  anim.think = 0; talkBusy = false; $("talkSend").disabled = false;
+  trimChat(); renderChat(); scheduleSave(); render();
+}
+function trimChat(){ if (S.chat.length > 40) S.chat = S.chat.slice(-40); }
+function errCopy(err){
+  const c = err && err.code;
+  if (c === "not_granted") return "Claude isn't allowed on this page yet. Allow it from the artifact's Permissions to talk.";
+  if (c === "rate_limited" || c === "queue_overflow") return "Too many messages at once. Wait a moment and try again.";
+  if (c === "session_expired") return "Your session expired. Reload the page to keep talking.";
+  if (c === "refused") return "It didn't want to answer that one. Try saying it another way.";
+  return "It couldn't answer just now. Try again in a moment.";
+}
+
+/* ------------------------------------------------------------------ care actions */
+function act(kind){
+  if (S.phase !== "pet" || game) return;
+  const p = S.pet;
+  if (kind !== "rest" && S.sleeping){ S.sleeping = false; say("*yawns* Morning!", 2500); }
+  if (kind === "charge"){
+    if (S.charge > 95){ say("I'm full of light already!", 2500); return; }
+    S.charge = clamp(S.charge + 30, 0, 100); S.mood = clamp(S.mood + 3, 0, 100); anim.charge = 2; gainXp(2);
+    say(["Warm. Like the lamp at the station.","*core brightens* Thank you.","Charging… mm."][Math.floor(Math.random()*3)], 2600);
+  } else if (kind === "pet"){
+    S.mood = clamp(S.mood + 8, 0, 100); anim.pet = 1.6; S.stats.pets++; gainXp(2);
+    if (S.stats.pets === 1) addMemory("The first time you petted me. My panels went warm.");
+    say(["*panels ripple happily*","Hehe. Again?","*leans into your hand*"][Math.floor(Math.random()*3)], 2200);
+  } else if (kind === "tidy"){
+    if (S.dust <= 0){ say("Nothing to sweep. I'm very tidy!", 2200); return; }
+    S.dust = 0; S.mood = clamp(S.mood + 6, 0, 100); anim.happy = 1.5; gainXp(3);
+    say("All my loose dust, gone. I feel shiny.", 2500);
+  } else if (kind === "rest"){
+    S.sleeping = !S.sleeping;
+    say(S.sleeping ? "*curls up by the lamp* Goodnight…" : "*blinks awake*", 2500);
+  }
+  scheduleSave(); render();
+}
+
+/* ------------------------------------------------------------------ speech bubble */
+let bubbleTimer = null;
+function say(text, ms){
+  if (!S.pet && S.phase === "pet") return;
+  $("bubbleWho").textContent = S.pet ? S.pet.name : "the Seed";
+  $("bubbleText").textContent = text;
+  $("bubble").hidden = false;
+  clearTimeout(bubbleTimer);
+  bubbleTimer = setTimeout(() => { $("bubble").hidden = true; }, ms || 3000);
+}
+function toastSys(t){ if (S.phase === "pet"){ S.chat.push({ r: "sys", t }); trimChat(); renderChat(); } }
+function setEmote(e){
+  if (e === "happy" || e === "excited") anim.happy = 1.8;
+  else if (e === "shy") anim.pet = 1.4;
+  else if (e === "sad") anim.sad = 2.5;
+  else if (e === "sleepy") anim.sleepy = 2.5;
+  else if (e === "curious") anim.curious = 2;
+}
+
+/* ------------------------------------------------------------------ games */
+const GAMES = [
+  { id: "catch", name: "Catch the Sparks", minLevel: 1, desc: "Sparks fall from the lighthouse. Catch the bright ones, dodge the grey dust. 30 seconds." },
+  { id: "echo", name: "Lamp Echo", minLevel: 2, desc: "Its panels light up in a pattern. Repeat it back. How long can you keep the echo going?" },
+  { id: "hide", name: "Hide & Seek", minLevel: 3, desc: "It shifts its panels to match the floor tiles and hides. Find it in five taps. Warm or cold hints help." },
+  { id: "remember", name: "Do You Remember?", minLevel: 1, minFacts: 3, desc: "It builds a quiz from your real history together: what you've told it, and what you've shared." },
+  { id: "story", name: "Story Night", minLevel: 4, minFacts: 8, desc: "Write a bedtime story together, one line each. Unlocks when it knows you well.", soon: true },
+];
+function gameUnlocked(g){ return S.level >= g.minLevel && (!g.minFacts || S.facts.length >= g.minFacts) && !g.soon; }
+function lockText(g){
+  if (g.soon && S.level >= g.minLevel && S.facts.length >= (g.minFacts||0)) return "Arriving in the next update.";
+  const parts = [];
+  if (S.level < g.minLevel) parts.push("Reach level " + g.minLevel);
+  if (g.minFacts && S.facts.length < g.minFacts) parts.push("it needs to know " + (g.minFacts - S.facts.length) + " more thing" + (g.minFacts - S.facts.length === 1 ? "" : "s") + " about you");
+  if (g.soon && !parts.length) parts.push("Arriving in the next update");
+  return parts.join(" and ") + ".";
+}
+function renderGames(){
+  const list = $("gameList"); list.textContent = "";
+  for (const g of GAMES){
+    const ok = gameUnlocked(g);
+    const card = document.createElement("div"); card.className = "game" + (ok ? "" : " locked");
+    const h = document.createElement("h3"); h.textContent = g.name;
+    const d = document.createElement("p"); d.textContent = g.desc;
+    const m = document.createElement("div"); m.className = "meta";
+    m.textContent = ok ? (S.best[g.id] != null ? "Best: " + S.best[g.id] : "New!") : lockText(g);
+    card.append(h, d, m);
+    if (ok){
+      const b = document.createElement("button"); b.className = "btn amber"; b.type = "button"; b.textContent = "Play";
+      b.addEventListener("click", () => startGame(g.id));
+      card.append(b);
+    }
+    list.append(card);
+  }
+}
+let game = null;
+const keys = { left: false, right: false };
+function startGame(id){
+  if (S.phase !== "pet") return;
+  if (S.charge < 15){ say("I'm too low on charge to play. Charge me first?", 3000); return; }
+  if (id === "remember"){ startQuiz(); return; }
+  S.sleeping = false;
+  game = { id, t: 0, score: 0, over: false };
+  if (id === "catch"){ game.x = 128; game.items = []; game.spawn = 0; game.time = 30; }
+  if (id === "echo"){ game.seq = []; game.input = []; game.phase = "show"; game.showI = 0; game.showT = 0; game.lit = -1; addEcho(); }
+  if (id === "hide"){ game.round = 1; game.found = 0; newHide(); }
+  $("petBtns").hidden = true; $("gameBtns").hidden = false;
+  $("gLeft").hidden = $("gRight").hidden = id !== "catch";
+  document.querySelector(".screen").scrollIntoView({ block: "nearest", behavior: "smooth" });
+  render();
+}
+function endGame(score, label){
+  const g = GAMES.find(x => x.id === game.id);
+  const xp = 5 + Math.min(25, score);
+  const prev = S.best[game.id];
+  const record = prev == null || score > prev;
+  if (record) S.best[game.id] = score;
+  S.charge = clamp(S.charge - 10, 0, 100); S.mood = clamp(S.mood + 10, 0, 100); S.stats.games++;
+  if (prev == null) addMemory("The first time we played " + g.name + ".");
+  else if (record && score > 0) addMemory("We set a new " + g.name + " record: " + score + ".");
+  game = null;
+  $("petBtns").hidden = false; $("gameBtns").hidden = true;
+  anim.happy = 2.2;
+  say((label || "Score: " + score) + (record && prev != null ? " New record!" : "") + " That was fun!", 4000);
+  gainXp(xp);
+  render();
+}
+function quitGame(){ if (!game) return; const s = game.score; endGame(s, "We stopped at " + s + "."); }
+// Echo
+function addEcho(){ game.seq.push(Math.floor(Math.random()*4)); game.input = []; game.phase = "show"; game.showI = 0; game.showT = -0.4; }
+function echoTap(q){
+  if (!game || game.id !== "echo" || game.phase !== "input") return;
+  game.lit = q; game.litT = 0.25;
+  if (game.seq[game.input.length] !== q){ endGame(game.seq.length - 1, "The echo broke at " + (game.seq.length - 1) + "."); return; }
+  game.input.push(q);
+  if (game.input.length === game.seq.length){ game.score = game.seq.length; game.phase = "wait"; game.waitT = 0.6; }
+}
+// Hide & seek
+function newHide(){ game.cell = Math.floor(Math.random()*36); game.taps = 5; game.tried = []; game.reveal = 0; }
+function hideTap(cx, cy){
+  if (!game || game.id !== "hide" || game.reveal) return;
+  const c = Math.floor(cx / (256/6)), r = Math.floor((cy - 0) / (256/6));
+  if (c < 0 || c > 5 || r < 0 || r > 5) return;
+  const idx = r*6 + c;
+  if (game.tried.some(t => t.i === idx)) return;
+  if (idx === game.cell){ game.found++; game.score += game.taps * 2; game.reveal = 1.2; return; }
+  game.taps--;
+  const hc = game.cell % 6, hr = (game.cell / 6) | 0;
+  game.tried.push({ i: idx, d: Math.abs(hc - c) + Math.abs(hr - r) });
+  if (game.taps <= 0) game.reveal = 1.2;
+}
+
+/* ------------------------------------------------------------------ quiz (Do You Remember?) */
+let quizBusy = false;
+async function startQuiz(){
+  const box = $("quiz");
+  if (quizBusy) return;
+  box.hidden = false; box.textContent = "";
+  const p = document.createElement("p"); p.className = "muted"; p.textContent = S.pet.name + " is remembering…";
+  box.append(p);
+  if (!caps.sample){ p.textContent = "This game needs Claude. Allow it from the artifact's Permissions."; return; }
+  quizBusy = true;
+  const prompt = [
+    `You are ${S.pet.name}, a Bitling, making a short friendly quiz for your caretaker called "Do You Remember?".`,
+    "Use ONLY these real facts and memories. Do not invent anything.",
+    "Facts you know about your caretaker:\n" + S.facts.map(f => "- " + f.t).join("\n"),
+    "Shared memories:\n" + (S.memories.slice(-15).map(m => "- " + m.t).join("\n") || "- none"),
+    `About you (${S.pet.name}): likes ${S.pet.likes.join(", ")}; dislikes ${S.pet.dislikes.join(", ")}; traits ${S.pet.traits.join(", ")}.`,
+    "Write 3 questions: at least one checking whether the caretaker remembers something about YOU or your shared memories, and at least one where you show you remember something about THEM. Each has 3 choices, exactly one right. Keep the wording playful and in your voice.",
+    'Reply with ONLY JSON: {"intro":"one short line in your voice","questions":[{"q":"question","choices":["a","b","c"],"answer":0,"reaction":"short line you say after it\'s answered"}]}'
+  ].join("\n\n");
+  let data = null;
+  try { data = await caps.sample.json(prompt, { modelTier: "quick", cache: false }); }
+  catch(err){ p.textContent = errCopy(err); quizBusy = false; return; }
+  quizBusy = false;
+  const qs = (data && Array.isArray(data.questions)) ? data.questions.filter(q => q && typeof q.q === "string" && Array.isArray(q.choices) && q.choices.length >= 2 && Number.isInteger(q.answer) && q.answer >= 0 && q.answer < q.choices.length).slice(0, 3) : [];
+  if (!qs.length){ p.textContent = "It got its memories tangled. Try again."; return; }
+  let i = 0, right = 0;
+  const show = () => {
+    box.textContent = "";
+    const h = document.createElement("h3"); h.textContent = "Do You Remember?  " + (i+1) + "/" + qs.length; box.append(h);
+    if (i === 0 && typeof data.intro === "string"){ const it = document.createElement("p"); it.className = "muted"; it.textContent = data.intro.slice(0, 200); box.append(it); }
+    const q = qs[i];
+    const qe = document.createElement("div"); qe.className = "q"; qe.textContent = q.q.slice(0, 240); box.append(qe);
+    const opts = document.createElement("div"); opts.className = "opts"; box.append(opts);
+    const res = document.createElement("p"); box.append(res);
+    q.choices.slice(0, 4).forEach((c, ci) => {
+      const b = document.createElement("button"); b.className = "btn"; b.type = "button"; b.textContent = String(c).slice(0, 120);
+      b.addEventListener("click", () => {
+        opts.querySelectorAll("button").forEach(x => x.disabled = true);
+        const ok = ci === q.answer; if (ok) right++;
+        res.className = ok ? "okc" : "bad";
+        res.textContent = (ok ? "Yes! " : "Not quite. ") + (typeof q.reaction === "string" ? q.reaction.slice(0, 200) : "");
+        anim[ok ? "happy" : "sad"] = 1.5;
+        const nx = document.createElement("button"); nx.className = "btn go"; nx.type = "button";
+        nx.textContent = i + 1 < qs.length ? "Next" : "Finish";
+        nx.addEventListener("click", () => { i++; if (i < qs.length) show(); else finishQuiz(); });
+        box.append(nx);
+      });
+      opts.append(b);
+    });
+  };
+  const finishQuiz = () => {
+    box.textContent = "";
+    const r = document.createElement("p"); r.textContent = `You got ${right} of ${qs.length}.`; box.append(r);
+    if (S.best.remember == null || right > S.best.remember) S.best.remember = right;
+    if (right >= 2) addMemory(`We played Do You Remember? and you got ${right} of ${qs.length}.`);
+    S.mood = clamp(S.mood + 4 * right, 0, 100);
+    gainXp(6 + right * 4);
+    say(right === qs.length ? "You remember everything. My Core feels so full." : "We'll make more memories, then you'll get them all.", 4500);
+    render();
+  };
+  show();
+}
+
+/* ------------------------------------------------------------------ canvas */
+const cv = $("cv"), ctx = cv.getContext("2d");
+ctx.imageSmoothingEnabled = false;
+const anim = { hatchCap: 1, t: 0, happy: 0, pet: 0, charge: 0, sad: 0, sleepy: 0, curious: 0, think: 0, hatching: 0, reveal: 0, blink: 0, nextBlink: 2, warm: 0, holding: false, shake: 0 };
+let last = performance.now(), liveTick = 0;
+const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function drawRoom(dim){
+  // night station room: window with lighthouse sweep, floor, lamp
+  ctx.fillStyle = "#0b0f1d"; ctx.fillRect(0,0,256,256);
+  ctx.fillStyle = "#101731"; ctx.fillRect(0,0,256,176);
+  // window
+  ctx.fillStyle = "#0a1230"; ctx.fillRect(150,22,84,64);
+  ctx.fillStyle = "#26305a"; ctx.fillRect(148,20,88,4); ctx.fillRect(148,84,88,4); ctx.fillRect(148,20,4,68); ctx.fillRect(232,20,4,68); ctx.fillRect(190,20,4,68);
+  for (let i=0;i<6;i++){ ctx.fillStyle = "#9fb4ff"; ctx.fillRect(158 + (i*29)%70, 30 + (i*17)%44, 1, 1); }
+  const sweep = (Math.sin(anim.t * 0.9) + 1) / 2;
+  ctx.fillStyle = `rgba(255,200,92,${0.10 + 0.25*sweep})`; ctx.fillRect(152,24,80,60);
+  ctx.fillStyle = "#ffc35c"; ctx.fillRect(214, 58, 3, 3);
+  // shelf + radio
+  ctx.fillStyle = "#1c2547"; ctx.fillRect(18,72,90,5);
+  ctx.fillStyle = "#2b3666"; ctx.fillRect(26,56,28,16); ctx.fillStyle = "#5df0a0"; ctx.fillRect(30,60,3,3);
+  ctx.fillStyle = (Math.floor(anim.t*2)%2) ? "#5fe3ff" : "#1a3d4a"; ctx.fillRect(36,60,3,3);
+  // floor
+  ctx.fillStyle = "#151c38"; ctx.fillRect(0,176,256,80);
+  for (let x=0; x<256; x+=32){ ctx.fillStyle = "#1a2244"; ctx.fillRect(x,176,1,80); }
+  ctx.fillStyle = "#222c55"; ctx.fillRect(0,176,256,2);
+  // lamp
+  ctx.fillStyle = "#2b3666"; ctx.fillRect(22,120,6,56); ctx.fillStyle = "#ffc35c"; ctx.fillRect(14,110,22,12);
+  const glow = ctx.createRadialGradient(25,118,2,25,118,70);
+  glow.addColorStop(0, `rgba(255,195,92,${0.25 + (anim.charge>0?0.25:0)})`); glow.addColorStop(1, "rgba(255,195,92,0)");
+  ctx.fillStyle = glow; ctx.fillRect(0,50,120,140);
+  if (dim){ ctx.fillStyle = `rgba(4,6,14,${dim})`; ctx.fillRect(0,0,256,256); }
+}
+function drawSeed(){
+  drawRoom(0.15);
+  const e = S.egg, prog = PROG() / 100;
+  const cx = 128, cy = 150;
+  const sh = anim.hatching > 0 ? Math.sin(anim.t * 50) * anim.hatching * 4 : (anim.holding ? 0 : Math.sin(anim.t*3) * (e.warm < 10 ? 1.2 : 0.3));
+  // glow
+  const warmA = clamp((anim.warm + (anim.holding ? 0.4 : 0)), 0, 1);
+  const g = ctx.createRadialGradient(cx, cy, 10, cx, cy, 90);
+  g.addColorStop(0, `rgba(95,227,255,${0.08 + warmA*0.25 + anim.hatching*0.5})`); g.addColorStop(1, "rgba(95,227,255,0)");
+  ctx.fillStyle = g; ctx.fillRect(0, 40, 256, 216);
+  // blob at low res
+  const R = 34 + prog * 6;
+  for (let y = -50; y <= 50; y += 4){
+    for (let x = -56; x <= 56; x += 4){
+      const a = Math.atan2(y, x);
+      const r = R + Math.sin(3*a + anim.t*1.4) * 4 + Math.sin(5*a - anim.t) * 2.5 + (y > 0 ? 4 : 0);
+      const d = Math.hypot(x, y*1.15);
+      if (d > r) continue;
+      const light = 1 - (y + 50) / 140;
+      const base = mix("#7f8499", "#c9ccd8", clamp(light, 0, 1));
+      ctx.fillStyle = anim.hatching > 0.6 ? mix(base, "#ffffff", (anim.hatching-0.6)*2.5) : base;
+      ctx.fillRect(cx + x + sh - 2, cy + y - 2, 4, 4);
+    }
+  }
+  // inner light, grows with progress
+  ctx.fillStyle = `rgba(255,210,122,${0.15 + prog*0.6})`;
+  ctx.fillRect(cx - 4 + sh, cy + 6, 8, 8);
+  // progress ring
+  ctx.strokeStyle = "#232c52"; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(cx, cy, 64, 0, Math.PI*2); ctx.stroke();
+  ctx.strokeStyle = "#5df0a0"; ctx.beginPath(); ctx.arc(cx, cy, 64, -Math.PI/2, -Math.PI/2 + Math.PI*2*prog); ctx.stroke();
+  if (anim.hatching > 0.85){ ctx.fillStyle = `rgba(255,255,255,${(anim.hatching-0.85)*6})`; ctx.fillRect(0,0,256,256); }
+}
+function drawPet(dt){
+  const p = S.pet;
+  const dim = S.sleeping ? 0.45 : 0;
+  drawRoom(dim);
+  // dust piles
+  for (let i=0; i<S.dust; i++){
+    const x = 70 + (i*47) % 150, y = 214 + (i*13) % 22;
+    ctx.fillStyle = "#6b708a"; ctx.fillRect(x, y, 8, 3); ctx.fillRect(x+2, y-2, 4, 2);
+    ctx.fillStyle = "#9aa0bd"; ctx.fillRect(x+3, y-2, 1, 1);
+  }
+  // pose
+  let eyes = "open";
+  if (S.sleeping || anim.sleepy > 0 || S.charge < 8) eyes = "closed";
+  else if (anim.happy > 0 || anim.pet > 0) eyes = "happy";
+  else if (anim.blink > 0) eyes = "closed";
+  const glow = clamp((anim.charge > 0 ? 1 : 0) + (anim.happy > 0 ? 0.6 : 0) + S.mood/200, 0, 1);
+  const pix = buildSprite(p, { eyes, frame: Math.floor(anim.t * 8), glow, blush: anim.pet > 0 || anim.happy > 1 });
+  const img = paintSprite(pix);
+  const scale = 5;
+  let bob = Math.round(Math.sin(anim.t * 2.2) * 2);
+  if (anim.happy > 0 && !reduce) bob -= Math.round(Math.abs(Math.sin(anim.t * 9)) * 10);
+  if (S.sleeping) bob = Math.round(Math.sin(anim.t * 1.2));
+  const droop = S.charge < 25 ? 3 : 0;
+  const tilt = anim.curious > 0 ? 0.12 : 0;
+  const x = 128 - N*scale/2, y = 214 - N*scale + bob + droop;
+  // shadow
+  ctx.fillStyle = "rgba(0,0,0,.35)"; ctx.fillRect(128 - 44, 214, 88, 6);
+  ctx.save();
+  ctx.translate(128, 214);
+  if (tilt) ctx.rotate(tilt * Math.sin(anim.t*2));
+  ctx.translate(-128, -214);
+  if (anim.reveal > 0){
+    // pixel dissolve reveal
+    ctx.globalAlpha = 1 - anim.reveal;
+  }
+  ctx.drawImage(img, x, y, N*scale, N*scale);
+  ctx.restore();
+  ctx.globalAlpha = 1;
+  // charge sparkles
+  if (anim.charge > 0){ for (let i=0;i<6;i++){ const a = anim.t*3 + i; ctx.fillStyle = i%2 ? "#ffc35c" : "#5fe3ff"; ctx.fillRect(128 + Math.cos(a)*60, 150 + Math.sin(a)*40, 3, 3); } }
+  // sleeping Zz
+  if (S.sleeping){ ctx.fillStyle = "#9fb4ff"; ctx.font = "16px 'Pixelify Sans', monospace"; ctx.fillText("z", 176, 110 - (anim.t*10)%20); ctx.fillText("Z", 190, 92 - (anim.t*8)%20); }
+  // thinking dots
+  if (anim.think > 0){ for (let i=0;i<3;i++){ ctx.fillStyle = (Math.floor(anim.t*4)%3)===i ? "#e7ecf7" : "#4b5678"; ctx.fillRect(170 + i*9, 70, 6, 6); } }
+  // hearts when petting
+  if (anim.pet > 0){ ctx.fillStyle = "#ff7b9c"; const hy = 70 - (1.6 - anim.pet)*20; ctx.fillRect(150, hy, 4, 4); ctx.fillRect(156, hy, 4, 4); ctx.fillRect(152, hy+4, 6, 3); ctx.fillRect(154, hy+7, 2, 2); }
+}
+function drawGame(dt){
+  const p = S.pet;
+  if (game.id === "catch"){
+    drawRoom(0.35);
+    game.time -= dt;
+    const sp = 120 * dt * 1.6;
+    if (keys.left) game.x -= sp * 1.6; if (keys.right) game.x += sp * 1.6;
+    game.x = clamp(game.x, 24, 232);
+    game.spawn -= dt;
+    if (game.spawn <= 0){ game.spawn = 0.45 - Math.min(0.25, (30 - game.time) * 0.008); game.items.push({ x: 12 + Math.random()*232, y: -8, v: 70 + Math.random()*60 + (30-game.time)*3, bad: Math.random() < 0.22 }); }
+    for (const it of game.items){ it.y += it.v * dt; }
+    for (const it of game.items){
+      if (!it.hit && it.y > 196 && it.y < 224 && Math.abs(it.x - game.x) < 26){ it.hit = true; if (it.bad){ game.score = Math.max(0, game.score - 2); anim.sad = 0.5; } else { game.score++; anim.happy = 0.3; } }
+    }
+    game.items = game.items.filter(it => !it.hit && it.y < 270);
+    for (const it of game.items){ ctx.fillStyle = it.bad ? "#7a7f99" : (Math.floor(anim.t*10)%2 ? p.palette.core : "#ffffff"); ctx.fillRect(it.x-4, it.y-4, 8, 8); }
+    const img = paintSprite(buildSprite(p, { eyes: anim.happy > 0 ? "happy" : "open", frame: Math.floor(anim.t*8), glow: 0.6 }));
+    ctx.drawImage(img, game.x - 48, 132, 96, 96);
+    hud("Sparks " + game.score, Math.ceil(game.time) + "s");
+    if (game.time <= 0) endGame(game.score, "Caught " + game.score + " sparks!");
+  } else if (game.id === "echo"){
+    drawRoom(0.6);
+    const cols = [p.palette.core, p.palette.accent, p.palette.eyes, "#ff7b9c"];
+    const quads = [[16,16],[136,16],[16,136],[136,136]];
+    if (game.phase === "show"){
+      game.showT += dt;
+      const step = 0.55 - Math.min(0.25, game.seq.length * 0.02);
+      const k = Math.floor(game.showT / step);
+      game.lit = (game.showT > 0 && k < game.seq.length && (game.showT % step) < step * 0.7) ? game.seq[k] : -1;
+      if (k >= game.seq.length){ game.phase = "input"; game.lit = -1; }
+    } else if (game.phase === "wait"){
+      game.waitT -= dt; if (game.waitT <= 0) addEcho();
+    }
+    if (game.litT > 0){ game.litT -= dt; if (game.litT <= 0 && game.phase === "input") game.lit = -1; }
+    quads.forEach((q, i) => {
+      ctx.fillStyle = game.lit === i ? cols[i] : mix(cols[i], "#0b0f1d", 0.72);
+      ctx.fillRect(q[0], q[1], 104, 104);
+    });
+    const img = paintSprite(buildSprite(p, { eyes: game.phase === "input" ? "open" : "happy", frame: Math.floor(anim.t*8), glow: game.lit >= 0 ? 1 : 0.3 }));
+    ctx.drawImage(img, 96, 96, 64, 64);
+    hud(game.phase === "input" ? "Your turn" : "Watch…", "Echo " + (game.seq.length - (game.phase === "show" ? 1 : 0)));
+  } else if (game.id === "hide"){
+    drawRoom(0.2);
+    const cs = 256/6;
+    for (let i=0;i<36;i++){
+      const c = i % 6, r = (i/6)|0;
+      const tried = game.tried.find(t => t.i === i);
+      let col = ((c + r) % 2) ? "#1a2347" : "#1e2850";
+      if (tried) col = tried.d <= 1 ? "#6b3a2a" : tried.d <= 2 ? "#4a3a5a" : "#1f3350";
+      ctx.fillStyle = col; ctx.fillRect(c*cs+1, r*cs+1, cs-2, cs-2);
+      if (tried){ ctx.fillStyle = tried.d <= 1 ? "#ffc35c" : tried.d <= 2 ? "#b89bff" : "#5fe3ff"; ctx.font = "12px 'Pixelify Sans', monospace"; ctx.fillText(tried.d <= 1 ? "hot" : tried.d <= 2 ? "warm" : "cold", c*cs + 6, r*cs + cs/2 + 4); }
+    }
+    if (game.reveal > 0){
+      const c = game.cell % 6, r = (game.cell/6)|0;
+      const img = paintSprite(buildSprite(p, { eyes: "happy", frame: Math.floor(anim.t*8), glow: 1 }));
+      ctx.drawImage(img, c*cs - 4, r*cs - 4, cs + 8, cs + 8);
+      game.reveal -= dt;
+      if (game.reveal <= 0){
+        if (game.round >= 3){ endGame(game.score, "Found me " + game.found + " of 3 times!"); return; }
+        game.round++; newHide();
+      }
+    }
+    hud("Round " + game.round + "/3", "Taps " + game.taps);
+  }
+}
+function hud(l, r){ $("hudL").textContent = l; $("hudR").textContent = r; }
+
+function loop(){
+  const tnow = performance.now();
+  const dt = Math.min(0.05, (tnow - last) / 1000); last = tnow;
+  anim.t += dt;
+  for (const k of ["happy","pet","charge","sad","sleepy","curious","shake"]) if (anim[k] > 0) anim[k] = Math.max(0, anim[k] - dt);
+  anim.nextBlink -= dt; if (anim.nextBlink <= 0){ anim.blink = 0.14; anim.nextBlink = 2 + Math.random()*3; }
+  if (anim.blink > 0) anim.blink -= dt;
+  if (anim.reveal > 0) anim.reveal = Math.max(0, anim.reveal - dt * 0.8);
+  if (anim.hatching > 0 && anim.hatching < 1){ anim.hatching = Math.min(anim.hatchCap || 1, anim.hatching + dt * 0.45); if (anim.hatching >= 1 && hatchResolve){ const r = hatchResolve; hatchResolve = null; r(); } }
+  // seed warmth
+  if (S.phase === "seed"){
+    if (anim.holding){ S.egg.warm = Math.min(60, S.egg.warm + dt * 6); anim.warm = Math.min(1, anim.warm + dt); liveTick += dt; if (liveTick > 1){ liveTick = 0; renderSeed(); scheduleSave(); } }
+    else anim.warm = Math.max(0, anim.warm - dt * 0.15);
+  }
+  // live needs drift
+  if (S.phase === "pet" && !game){
+    liveTick += dt;
+    if (liveTick > 30){
+      liveTick = 0;
+      if (S.sleeping){ S.charge = clamp(S.charge + 4, 0, 100); }
+      else { S.charge = clamp(S.charge - 0.8, 0, 100); if (S.dust > 2) S.mood = clamp(S.mood - 1, 0, 100); }
+      if (Math.random() < 0.12 && S.dust < 6) S.dust++;
+      renderStats(); scheduleSave();
+    }
+  }
+  if (S.phase === "seed") drawSeed();
+  else if (game) drawGame(dt);
+  else if (S.pet) drawPet(dt);
+  if (!game && S.phase === "pet") hud("Lv " + S.level, S.sleeping ? "Asleep" : (S.charge < 20 ? "Low charge" : (S.dust > 3 ? "Dusty" : "")));
+  if (S.phase === "seed") hud("Forming " + PROG() + "%", S.egg.warm < 10 ? "It's cold" : "");
+  requestAnimationFrame(loop);
+}
+
+/* ------------------------------------------------------------------ rendering (DOM) */
+function render(){
+  const seed = S.phase === "seed";
+  $("pSeed").hidden = !seed;
+  $("pTalk").hidden = seed; $("pGames").hidden = seed; $("pCore").hidden = seed;
+  $("eggBtns").hidden = !seed || !!game; $("petBtns").hidden = seed || !!game; $("gameBtns").hidden = !game;
+  $("stats").hidden = seed; $("lvlRow").hidden = seed;
+  $("releaseBtn").textContent = seed ? "Clear this Seed" : "Start over with a new Seed";
+  if (seed) renderSeed();
+  else { renderStats(); renderChat(); renderGames(); renderCore(); }
+  $("whoChip").textContent = seed ? "Kell Island · a Seed is forming" : (S.pet.name + " · Bit stage");
+}
+function renderSeed(){
+  const e = S.egg, prog = PROG();
+  $("sWarm").classList.toggle("done", e.warm >= 40);
+  $("sWhisper").classList.toggle("done", e.whispers.length >= 3);
+  $("sImagine").classList.toggle("done", !!e.desc);
+  $("whisperCount").textContent = "(" + Math.min(3, e.whispers.length) + "/3)";
+  const wl = $("whisperList"); wl.textContent = "";
+  for (const w of e.whispers){ const li = document.createElement("li"); li.textContent = "“" + w + "”"; wl.append(li); }
+  const ready = prog >= 100 && !!e.desc;
+  $("hatchBtn").disabled = !ready || anim.hatching > 0;
+  if (anim.hatching <= 0) $("hatchHint").textContent = ready ? "It's ready. It wants to meet you." : "Forming " + prog + "%. Finish all three to hatch.";
+}
+function renderStats(){
+  const set = (id, v) => { $("b"+id).style.width = clamp(v,0,100) + "%"; $("v"+id).textContent = Math.round(v); };
+  set("Charge", S.charge); set("Mood", S.mood); set("Tidy", 100 - S.dust * 16.6);
+  $("lvlText").textContent = "Lv " + S.level;
+  $("bXp").style.width = (S.xp / xpNeed(S.level) * 100) + "%";
+  $("xpText").textContent = S.xp + "/" + xpNeed(S.level) + " XP";
+  $("aRest").textContent = S.sleeping ? "Wake" : "Rest";
+}
+function renderChat(){
+  if (S.phase !== "pet") return;
+  $("talkTitle").textContent = "Talk with " + S.pet.name;
+  const box = $("chat"); box.textContent = "";
+  for (const m of S.chat.slice(-30)){
+    const d = document.createElement("div"); d.className = "msg " + m.r; d.textContent = m.t; box.append(d);
+  }
+  box.scrollTop = box.scrollHeight;
+}
+let coreTab = "mem";
+function renderCore(){
+  const f = coreFill();
+  $("coreRing").style.setProperty("--p", Math.round(f*100));
+  $("coreTitle").textContent = S.memories.length + " of " + CORE_FULL + " memories";
+  $("coreText").textContent = f >= 1
+    ? (S.level >= 4 ? "Its Core is full. Something is stirring. (Shifting arrives in the next update.)" : "Its Core is full. Reach level 4 and a choice that matters may let it Shift.")
+    : "Moments you share fill its Core. A full Core and a choice that matters let a Bitling Shift.";
+  for (const [id, k] of [["tMem","mem"],["tFacts","facts"],["tAbout","about"]]) $(id).setAttribute("aria-selected", String(coreTab === k));
+  const body = $("coreBody"); body.textContent = "";
+  if (coreTab === "about"){
+    const p = S.pet;
+    const rows = [["Nature", p.nature], ["Traits", p.traits.join(", ")], ["Voice", p.voice], ["Likes", p.likes.join(", ")], ["Dislikes", p.dislikes.join(", ")], ["What it might become", p.power_seed || "Not clear yet."], ["Hatched", new Date(S.hatchedAt || S.created).toLocaleDateString()]];
+    const ul = document.createElement("ul"); ul.className = "list";
+    for (const [k, v] of rows){ const li = document.createElement("li"); const b = document.createElement("b"); b.textContent = k + ": "; li.append(b, document.createTextNode(v || "-")); ul.append(li); }
+    body.append(ul); return;
+  }
+  const items = coreTab === "mem" ? S.memories.slice().reverse() : S.facts.slice().reverse();
+  if (!items.length){
+    const p = document.createElement("p"); p.className = "muted";
+    p.textContent = coreTab === "mem" ? "No memories yet. Play, talk and care for it." : "It doesn't know anything about you yet. Tell it about yourself in Talk.";
+    body.append(p); return;
+  }
+  const ul = document.createElement("ul"); ul.className = "list";
+  for (const it of items){ const li = document.createElement("li"); li.textContent = it.t; ul.append(li); }
+  body.append(ul);
+}
+
+/* ------------------------------------------------------------------ input wiring */
+function holdStart(e){ if (S.phase !== "seed" || anim.hatching > 0) return; e.preventDefault(); anim.holding = true; }
+function holdEnd(){ if (anim.holding){ anim.holding = false; renderSeed(); scheduleSave(); } }
+$("eHold").addEventListener("pointerdown", holdStart);
+["pointerup","pointerleave","pointercancel"].forEach(ev => { $("eHold").addEventListener(ev, holdEnd); cv.addEventListener(ev, holdEnd); });
+window.addEventListener("blur", holdEnd);
+$("eTalk").addEventListener("click", () => { $("whisperBox").hidden = false; $("imagineBox").hidden = true; $("whisperIn").focus(); });
+$("eImagine").addEventListener("click", () => { $("imagineBox").hidden = false; $("whisperBox").hidden = true; $("imagineIn").value = S.egg.desc; $("nameIn").value = S.egg.wantName; $("callIn").value = S.egg.callMe; $("imagineIn").focus(); });
+function sendWhisper(){
+  const v = $("whisperIn").value.trim(); if (!v) return;
+  S.egg.whispers.push(v.slice(0, 200)); if (S.egg.whispers.length > 8) S.egg.whispers.shift();
+  $("whisperIn").value = ""; anim.warm = Math.min(1, anim.warm + 0.4);
+  say(["*the Seed wobbles, listening*","*it warms a little*","*something inside it turns toward your voice*"][S.egg.whispers.length % 3], 2500);
+  renderSeed(); scheduleSave();
+}
+$("whisperSend").addEventListener("click", sendWhisper);
+$("whisperIn").addEventListener("keydown", (e) => { if (e.key === "Enter") sendWhisper(); });
+$("imagineSave").addEventListener("click", () => {
+  const d = $("imagineIn").value.trim();
+  if (!d){ $("imagineIn").focus(); return; }
+  S.egg.desc = d.slice(0, 600); S.egg.wantName = $("nameIn").value.trim().slice(0, 24); S.egg.callMe = $("callIn").value.trim().slice(0, 24);
+  say("*the Seed's surface ripples, like it's trying on a shape*", 3000);
+  renderSeed(); scheduleSave();
+});
+$("drawIn").addEventListener("change", async (e) => {
+  const f = e.target.files && e.target.files[0];
+  if (!f) return;
+  if (!/^image\//.test(f.type)){ return; }
+  drawingBlob = f;
+  if (drawingUrl) URL.revokeObjectURL(drawingUrl);
+  drawingUrl = URL.createObjectURL(f);
+  $("drawPrev").src = drawingUrl; $("drawPrev").hidden = false;
+  S.egg.hasDrawing = true; renderSeed(); scheduleSave();
+});
+$("hatchBtn").addEventListener("click", () => { if (PROG() >= 100 && S.egg.desc && anim.hatching <= 0) hatch(); });
+cv.addEventListener("pointerdown", (e) => {
+  const r = cv.getBoundingClientRect();
+  const x = (e.clientX - r.left) / r.width * 256, y = (e.clientY - r.top) / r.height * 256;
+  if (S.phase === "seed"){ holdStart(e); return; }
+  if (game){
+    if (game.id === "catch"){ game.x = x; }
+    else if (game.id === "echo"){ echoTap((x < 128 ? 0 : 1) + (y < 128 ? 0 : 2)); }
+    else if (game.id === "hide"){ hideTap(x, y); }
+    return;
+  }
+  if (S.phase === "pet" && y > 60 && y < 220 && Math.abs(x - 128) < 70) act("pet");
+});
+cv.addEventListener("pointermove", (e) => { if (game && game.id === "catch" && e.buttons){ const r = cv.getBoundingClientRect(); game.x = (e.clientX - r.left) / r.width * 256; } });
+$("aCharge").addEventListener("click", () => act("charge"));
+$("aPet").addEventListener("click", () => act("pet"));
+$("aTidy").addEventListener("click", () => act("tidy"));
+$("aRest").addEventListener("click", () => act("rest"));
+$("aTalk").addEventListener("click", () => { $("pTalk").scrollIntoView({ behavior: "smooth", block: "start" }); $("talkIn").focus({ preventScroll: true }); });
+$("aPlay").addEventListener("click", () => { $("pGames").scrollIntoView({ behavior: "smooth", block: "start" }); });
+$("talkSend").addEventListener("click", sendTalk);
+$("talkIn").addEventListener("keydown", (e) => { if (e.key === "Enter") sendTalk(); });
+$("gQuit").addEventListener("click", quitGame);
+const hold = (id, k) => { const b = $(id); b.addEventListener("pointerdown", () => keys[k] = true); ["pointerup","pointerleave","pointercancel"].forEach(ev => b.addEventListener(ev, () => keys[k] = false)); };
+hold("gLeft", "left"); hold("gRight", "right");
+window.addEventListener("keydown", (e) => {
+  if (!game) return;
+  if (e.key === "ArrowLeft") { keys.left = true; e.preventDefault(); }
+  if (e.key === "ArrowRight") { keys.right = true; e.preventDefault(); }
+  if (game.id === "echo"){ const m = { "1":0, "2":1, "3":2, "4":3 }; if (m[e.key] != null) echoTap(m[e.key]); }
+  if (e.key === "Escape") quitGame();
+});
+window.addEventListener("keyup", (e) => { if (e.key === "ArrowLeft") keys.left = false; if (e.key === "ArrowRight") keys.right = false; });
+for (const [id, k] of [["tMem","mem"],["tFacts","facts"],["tAbout","about"]]) $(id).addEventListener("click", () => { coreTab = k; renderCore(); });
+
+// dictation (optional)
+function wireMic(btnId, inputId){
+  const b = $(btnId);
+  let on = false;
+  b.addEventListener("click", () => {
+    const d = caps.dictation; if (!d) return;
+    if (on){ d.stop().catch(() => {}); return; }
+    let base = $(inputId).value;
+    d.onPartial(({ text }) => { $(inputId).value = (base ? base + " " : "") + text; });
+    d.onFinal(({ text }) => { base = (base ? base + " " : "") + text; $(inputId).value = base; });
+    d.onState(({ state }) => { on = state === "listening" || state === "starting"; b.textContent = on ? "■" : "🎙"; });
+    d.start().catch((err) => { if (err && err.code === "not_granted"){ b.hidden = true; } });
+  });
+}
+wireMic("talkMic", "talkIn"); wireMic("whisperMic", "whisperIn");
+
+// start over
+$("releaseBtn").addEventListener("click", () => { $("releaseConfirm").hidden = false; });
+$("releaseNo").addEventListener("click", () => { $("releaseConfirm").hidden = true; });
+$("releaseYes").addEventListener("click", () => {
+  S = freshState(); game = null; drawingBlob = null; $("drawPrev").hidden = true;
+  $("releaseConfirm").hidden = true; $("whisperBox").hidden = true; $("imagineBox").hidden = true;
+  anim.hatching = 0; anim.reveal = 0;
+  saveNow(); render();
+});
+document.addEventListener("visibilitychange", () => { if (document.hidden) saveNow(); });
+
+boot();
+})();
+</script>
