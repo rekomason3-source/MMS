@@ -63,8 +63,13 @@ textarea{min-height:76px}
 .step b{font-family:var(--display);font-weight:500;color:var(--fg)}
 .tick{flex:none;width:18px;height:18px;border-radius:5px;border:2px solid var(--line);margin-top:2px}
 .step.done .tick{background:var(--green);border-color:var(--green)}
-.whispers{list-style:none;padding:0;margin:8px 0 0;display:flex;flex-wrap:wrap;gap:6px}
-.whispers li{background:#0e1323;border:1px dashed var(--line);border-radius:999px;padding:2px 10px;font-size:13px;color:var(--muted)}
+.heard{list-style:none;padding:0;margin:0;display:grid;gap:6px}
+.heard li{background:#0e1323;border:1px solid var(--line);border-radius:10px;padding:7px 10px;font-size:14px}
+.heard .said{color:var(--fg)}
+.heard .react{display:block;color:var(--muted);font-size:13px;font-style:italic;margin-top:2px}
+.heard .sw{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px;border:1px solid #0006}
+.shaped{background:#0e1323;border:1px solid var(--line);border-radius:12px;padding:10px 12px;align-self:stretch;font-size:14px}
+.shaped b{font-family:var(--display);font-weight:500}
 .drawing{display:flex;gap:10px;align-items:center}
 .drawing img{width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
 .chat{height:300px;overflow-y:auto;background:#0e1323;border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px}
@@ -140,14 +145,17 @@ textarea{min-height:76px}
       <p class="lead">It came in a plain white box: soft, grey and shapeless, a little bigger than a cat. The card says <i>Your Bitling will love you. It will protect you. The rest, you must imagine.</i> Keep it warm, talk to it, and imagine what it will become.</p>
       <div class="steps">
         <div class="step" id="sWarm"><span class="tick"></span><div><b>Hold it</b><div class="muted">Press and hold the Seed (or the button) to keep it warm.</div></div></div>
-        <div class="step" id="sWhisper"><span class="tick"></span><div><b>Talk to it</b> <span class="muted" id="whisperCount"></span><div class="muted">Tell it about you, your day, what you hope for. It listens while it forms.</div></div></div>
+        <div class="step" id="sWhisper"><span class="tick"></span><div><b>Talk to it</b> <span class="muted" id="whisperCount"></span><div class="muted">Tell it about you, your day, what you hope for. It reacts to what you say, and your words shape what it becomes.</div></div></div>
         <div class="step" id="sImagine"><span class="tick"></span><div><b>Imagine it</b><div class="muted">Describe the Bitling you imagine. Add a drawing if you like.</div></div></div>
       </div>
       <div id="whisperBox" hidden>
         <div class="field"><label for="whisperIn">Say something to the Seed</label>
-          <div class="row"><input type="text" id="whisperIn" maxlength="200" placeholder="I'm going to keep you safe."><button class="btn" id="whisperMic" type="button" hidden>🎙</button><button class="btn go" id="whisperSend" type="button">Say it</button></div>
+          <div class="row"><input type="text" id="whisperIn" maxlength="200" placeholder="I love the ocean at night."><button class="btn" id="whisperMic" type="button" hidden>🎙</button><button class="btn go" id="whisperSend" type="button">Say it</button></div>
         </div>
-        <ul class="whispers" id="whisperList"></ul>
+      </div>
+      <div id="heardBox" hidden>
+        <h3 style="font-size:15px;margin:10px 0 4px">What it heard</h3>
+        <ul class="heard" id="whisperList"></ul>
       </div>
       <div id="imagineBox" hidden>
         <div class="field"><label for="imagineIn">What do you imagine?</label>
@@ -212,13 +220,13 @@ const HEX = /^#[0-9a-fA-F]{6}$/;
 const VERSION = 1;
 function freshState(){
   return { v: VERSION, phase: "seed", created: now(), lastSeen: now(),
-    egg: { warm: 0, whispers: [], desc: "", wantName: "", callMe: "", hasDrawing: false },
+    egg: { warm: 0, whispers: [], imprints: [], desc: "", wantName: "", callMe: "", hasDrawing: false },
     pet: null, charge: 80, mood: 70, dust: 0, level: 1, xp: 0, sleeping: false,
     memories: [], facts: [], chat: [], best: {}, stats: { talks: 0, games: 0, pets: 0 } };
 }
 let S = freshState();
 let caps = { db: null, sample: null, user: null, dictation: null };
-let docRef = null, storeKind = "none";
+let docRef = null, storeKind = "none", booted = false, actedBeforeLoad = false;
 
 /* ------------------------------------------------------------------ storage */
 const LSKEY = "iyb-state-v1";
@@ -263,7 +271,21 @@ async function boot(){
     try { const raw = localStorage.getItem(LSKEY); if (raw) loaded = JSON.parse(raw); } catch(e){}
     $("footNote").textContent = "Saving to your claude.ai account isn't available here, so progress is kept in this browser only.";
   }
-  if (loaded && loaded.v === VERSION) S = Object.assign(freshState(), loaded);
+  if (loaded && loaded.v === VERSION){
+    const mine = S;
+    S = Object.assign(freshState(), loaded);
+    S.egg = Object.assign(freshState().egg, S.egg || {});
+    // the viewer started talking/holding before the save finished loading: keep their words
+    if (actedBeforeLoad && S.phase === "seed" && mine.phase === "seed"){
+      for (const w of mine.egg.whispers) if (!S.egg.whispers.includes(w)) S.egg.whispers.push(w);
+      for (const im of mine.egg.imprints) if (!S.egg.imprints.some(x => x.said === im.said)) S.egg.imprints.push(im);
+      S.egg.warm = Math.max(S.egg.warm, mine.egg.warm);
+      if (!S.egg.desc && mine.egg.desc){ S.egg.desc = mine.egg.desc; S.egg.wantName = mine.egg.wantName; S.egg.callMe = mine.egg.callMe; }
+      scheduleSave();
+    }
+  }
+  for (const im of S.egg.imprints || []) if (im.pending){ const l = localImprint(im.said); Object.assign(im, l); delete im.pending; }
+  booted = true;
   setSave(docRef ? "Saved" : "Saved in this browser");
   if (caps.dictation){ $("talkMic").hidden = false; $("whisperMic").hidden = false; }
   catchUp();
@@ -483,6 +505,7 @@ function sanitizeSpec(s){
     name: str(s.name, "Pip", 24), body: pick("body"), ears: pick("ears"), tail: pick("tail"), extra: pick("extra"), eyeShape: pick("eyeShape"),
     palette: { body, shade: col(pal.shade, mix(body, "#3a3f5a", 0.35)), core: col(pal.core, "#ffd27a"), eyes: col(pal.eyes, "#5fe3ff"), accent: col(pal.accent, "#ffc35c") },
     nature: str(s.nature, "A new Bitling.", 160), traits: arr(s.traits, 3), voice: str(s.voice, "warm and short", 80),
+    shaped_by: Array.isArray(s.shaped_by) ? s.shaped_by.filter(x => x && typeof x.said === "string" && typeof x.became === "string").slice(0, 8).map(x => ({ said: x.said.slice(0, 200), became: x.became.slice(0, 120) })) : [],
     likes: arr(s.likes, 3), dislikes: arr(s.dislikes, 2), power_seed: str(s.power_seed, "", 160), first_words: str(s.first_words, "Hi.", 140),
   };
 }
@@ -506,12 +529,13 @@ async function hatch(){
       "World rules: Bitlings are plush companions built from nanites and shaped by a caretaker's imagination. Toy-like rounded silhouettes (never realistic animal anatomy), soft skin of small hex panels, glowing lens eyes (no realistic pupils, noses or beaks), and a softly glowing core in the chest.",
       "This one formed on Kell Island, the small neutral island whose radio station belongs to nobody, from a soft grey Seed its caretaker held, talked to and imagined.",
       "Caretaker's description: \"\"\"" + e.desc + "\"\"\"",
-      "What the caretaker said to the Seed while it formed:\n" + (e.whispers.map(w => "- " + w).join("\n") || "- (nothing)"),
+      "What the caretaker said to the Seed while it formed, how it reacted, and what it started to take on:\n" + ((e.imprints.length ? e.imprints : e.whispers.map(w => ({ said: w }))).map(x => `- said "${x.said}"` + (x.reaction ? `; it reacted: ${x.reaction}` : "") + (x.color ? `; color it took on: ${x.color}` : "") + (x.trait ? `; trait: ${x.trait}` : "")).join("\n") || "- (nothing)"),
+      "IMPORTANT: what the caretaker said must visibly shape the Bitling. Use the colors it took on in its palette, the traits in its personality, and let their words show in its likes, nature and first words.",
       "Name the caretaker chose: " + (e.wantName || "none, so choose a short, original, easy-to-say name"),
       "The caretaker wants to be called: " + (e.callMe || "(not given)"),
       drawingBlob ? "The attached image is the caretaker's own drawing of it. Match its shape, features and colors as closely as the options allow." : "",
       "Pick the closest options. Reply with ONLY a JSON object like:",
-      '{"name":"Lumo","body":"round|tall|long|small","ears":"none|tufts|long|round|fins|horns","tail":"none|short|long|mist|flame","extra":"none|wings|crest|antenna|scarf|shell","eyeShape":"round|oval|sleepy|wide","palette":{"body":"#e9e6f0","shade":"#a9a6c0","core":"#ffd27a","eyes":"#5fe3ff","accent":"#ffc35c"},"nature":"one sentence about what it is at heart","traits":["three","single","words"],"voice":"how it talks, a few words","likes":["two or three things"],"dislikes":["one or two"],"power_seed":"one sentence: the signature power that might one day grow out of who it is","first_words":"its first words to the caretaker, under 20 words, shaped by what they said to the Seed"}',
+      '{"name":"Lumo","body":"round|tall|long|small","ears":"none|tufts|long|round|fins|horns","tail":"none|short|long|mist|flame","extra":"none|wings|crest|antenna|scarf|shell","eyeShape":"round|oval|sleepy|wide","palette":{"body":"#e9e6f0","shade":"#a9a6c0","core":"#ffd27a","eyes":"#5fe3ff","accent":"#ffc35c"},"nature":"one sentence about what it is at heart","traits":["three","single","words"],"voice":"how it talks, a few words","likes":["two or three things"],"dislikes":["one or two"],"power_seed":"one sentence: the signature power that might one day grow out of who it is","first_words":"its first words to the caretaker, under 20 words, answering something they said to the Seed","shaped_by":[{"said":"exact words the caretaker said","became":"what that became in you, under 14 words"}]}',
       "Colors must be 6-digit hex. Body color light enough to read on a dark night background. Keep everything kind and age-appropriate."
     ].filter(Boolean).join("\n\n");
     try {
@@ -526,7 +550,14 @@ async function hatch(){
       if (!spec) $("hatchHint").textContent = errCopy(err) + " Hatching with what it heard instead.";
     }
   }
-  if (!spec) spec = localSpec(e.desc, e.wantName);
+  if (!spec){
+    spec = localSpec(e.desc, e.wantName);
+    const tint = seedTint(); if (tint){ spec.palette.body = mix(spec.palette.body, tint, 0.55); spec.palette.shade = mix(spec.palette.body, "#3a3f5a", 0.35); }
+    const tr = e.imprints.map(x => x.trait).filter(Boolean); if (tr.length) spec.traits = Array.from(new Set(tr.concat(spec.traits))).slice(0, 3);
+  }
+  if (!spec.shaped_by || !spec.shaped_by.length){
+    spec.shaped_by = e.imprints.filter(x => x.color || x.trait).slice(0, 6).map(x => ({ said: x.said, became: x.trait ? "I'm a little more " + x.trait + " because of it." : "That color is part of me now." }));
+  }
   if (e.wantName) spec.name = e.wantName.slice(0, 24);
   anim.hatchCap = 1;
   await waitHatchAnim();
@@ -534,7 +565,8 @@ async function hatch(){
   S.charge = 85; S.mood = 85; S.dust = 0; S.level = 1; S.xp = 0;
   S.chat = [{ r: "pet", t: spec.first_words }];
   addMemory("The day I hatched. " + (e.callMe ? e.callMe + " was" : "You were") + " the first thing I saw.", true);
-  for (const w of e.whispers.slice(0, 2)) addMemory("Before I hatched, you told me: \"" + w.slice(0, 100) + "\"", true);
+  for (const w of e.whispers.slice(0, 3)) addMemory("Before I hatched, you told me: \"" + w.slice(0, 100) + "\"", true);
+  if (spec.shaped_by.length) S.chat.push({ r: "shaped", t: "How you shaped me", items: spec.shaped_by });
   if (!viaClaude) S.chat.push({ r: "sys", t: "Hatched without Claude, so its talk will be simple until Claude is allowed on this page." });
   anim.hatching = 0; anim.reveal = 1; anim.happy = 3;
   say(spec.first_words, 7000);
@@ -561,7 +593,7 @@ async function sendTalk(){
   talkBusy = true; $("talkSend").disabled = true; $("talkNote").textContent = S.pet.name + " is thinking…";
   anim.think = 1;
   const p = S.pet;
-  const hist = S.chat.slice(-14, -1).filter(m => m.r !== "sys").map(m => (m.r === "me" ? "Caretaker" : p.name) + ": " + m.t).join("\n");
+  const hist = S.chat.slice(-14, -1).filter(m => m.r === "me" || m.r === "pet").map(m => (m.r === "me" ? "Caretaker" : p.name) + ": " + m.t).join("\n");
   const prompt = [
     `You are ${p.name}, a Bitling at the Bit stage, living with your caretaker on Kell Island (a small neutral island; its radio station belongs to nobody and everyone who comes through the door is a guest; a lighthouse sweeps the harbor at night).`,
     `Who you are: ${p.nature} Traits: ${p.traits.join(", ")}. You talk like this: ${p.voice}. Likes: ${p.likes.join(", ")}. Dislikes: ${p.dislikes.join(", ")}.`,
@@ -851,7 +883,8 @@ function drawSeed(){
   g.addColorStop(0, `rgba(95,227,255,${0.08 + warmA*0.25 + anim.hatching*0.5})`); g.addColorStop(1, "rgba(95,227,255,0)");
   ctx.fillStyle = g; ctx.fillRect(0, 40, 256, 216);
   // blob at low res
-  const R = 34 + prog * 6;
+  const tint = seedTint();
+  const R = 34 + prog * 6 + (anim.listen > 0 ? Math.sin(anim.t * 14) * 2 * anim.listen : 0);
   for (let y = -50; y <= 50; y += 4){
     for (let x = -56; x <= 56; x += 4){
       const a = Math.atan2(y, x);
@@ -859,7 +892,8 @@ function drawSeed(){
       const d = Math.hypot(x, y*1.15);
       if (d > r) continue;
       const light = 1 - (y + 50) / 140;
-      const base = mix("#7f8499", "#c9ccd8", clamp(light, 0, 1));
+      let base = mix("#7f8499", "#c9ccd8", clamp(light, 0, 1));
+      if (tint) base = mix(base, tint, Math.min(0.55, 0.14 * S.egg.imprints.filter(x => x.color).length));
       ctx.fillStyle = anim.hatching > 0.6 ? mix(base, "#ffffff", (anim.hatching-0.6)*2.5) : base;
       ctx.fillRect(cx + x + sh - 2, cy + y - 2, 4, 4);
     }
@@ -990,7 +1024,7 @@ function loop(){
   const tnow = performance.now();
   const dt = Math.min(0.05, (tnow - last) / 1000); last = tnow;
   anim.t += dt;
-  for (const k of ["happy","pet","charge","sad","sleepy","curious","shake"]) if (anim[k] > 0) anim[k] = Math.max(0, anim[k] - dt);
+  for (const k of ["happy","pet","charge","sad","sleepy","curious","shake","listen"]) if (anim[k] > 0) anim[k] = Math.max(0, anim[k] - dt);
   anim.nextBlink -= dt; if (anim.nextBlink <= 0){ anim.blink = 0.14; anim.nextBlink = 2 + Math.random()*3; }
   if (anim.blink > 0) anim.blink -= dt;
   if (anim.reveal > 0) anim.reveal = Math.max(0, anim.reveal - dt * 0.8);
@@ -1038,7 +1072,15 @@ function renderSeed(){
   $("sImagine").classList.toggle("done", !!e.desc);
   $("whisperCount").textContent = "(" + Math.min(3, e.whispers.length) + "/3)";
   const wl = $("whisperList"); wl.textContent = "";
-  for (const w of e.whispers){ const li = document.createElement("li"); li.textContent = "“" + w + "”"; wl.append(li); }
+  const imps = e.imprints.length ? e.imprints : e.whispers.map(w => ({ said: w, reaction: "" }));
+  $("heardBox").hidden = !imps.length;
+  for (const im of imps.slice().reverse()){
+    const li = document.createElement("li");
+    if (im.color){ const sw = document.createElement("span"); sw.className = "sw"; sw.style.background = im.color; li.append(sw); }
+    const sd = document.createElement("span"); sd.className = "said"; sd.textContent = "“" + im.said + "”"; li.append(sd);
+    if (im.reaction){ const rc = document.createElement("span"); rc.className = "react"; rc.textContent = im.reaction + (im.trait ? "  (" + im.trait + ")" : ""); li.append(rc); }
+    wl.append(li);
+  }
   const ready = prog >= 100 && !!e.desc;
   $("hatchBtn").disabled = !ready || anim.hatching > 0;
   if (anim.hatching <= 0) $("hatchHint").textContent = ready ? "It's ready. It wants to meet you." : "Forming " + prog + "%. Finish all three to hatch.";
@@ -1056,6 +1098,13 @@ function renderChat(){
   $("talkTitle").textContent = "Talk with " + S.pet.name;
   const box = $("chat"); box.textContent = "";
   for (const m of S.chat.slice(-30)){
+    if (m.r === "shaped"){
+      const d = document.createElement("div"); d.className = "shaped";
+      const h = document.createElement("b"); h.textContent = m.t; d.append(h);
+      const ul = document.createElement("ul"); ul.className = "list";
+      for (const it of (m.items || [])){ const li = document.createElement("li"); li.textContent = "“" + it.said + "” → " + it.became; ul.append(li); }
+      d.append(ul); box.append(d); continue;
+    }
     const d = document.createElement("div"); d.className = "msg " + m.r; d.textContent = m.t; box.append(d);
   }
   box.scrollTop = box.scrollHeight;
@@ -1072,7 +1121,7 @@ function renderCore(){
   const body = $("coreBody"); body.textContent = "";
   if (coreTab === "about"){
     const p = S.pet;
-    const rows = [["Nature", p.nature], ["Traits", p.traits.join(", ")], ["Voice", p.voice], ["Likes", p.likes.join(", ")], ["Dislikes", p.dislikes.join(", ")], ["What it might become", p.power_seed || "Not clear yet."], ["Hatched", new Date(S.hatchedAt || S.created).toLocaleDateString()]];
+    const rows = [["Nature", p.nature], ["Traits", p.traits.join(", ")], ["Voice", p.voice], ["Likes", p.likes.join(", ")], ["Dislikes", p.dislikes.join(", ")], ["What it might become", p.power_seed || "Not clear yet."], ["How you shaped it", (p.shaped_by || []).map(x => "“" + x.said + "” → " + x.became).join("  ·  ") || "-"], ["Hatched", new Date(S.hatchedAt || S.created).toLocaleDateString()]];
     const ul = document.createElement("ul"); ul.className = "list";
     for (const [k, v] of rows){ const li = document.createElement("li"); const b = document.createElement("b"); b.textContent = k + ": "; li.append(b, document.createTextNode(v || "-")); ul.append(li); }
     body.append(ul); return;
@@ -1089,25 +1138,64 @@ function renderCore(){
 }
 
 /* ------------------------------------------------------------------ input wiring */
-function holdStart(e){ if (S.phase !== "seed" || anim.hatching > 0) return; e.preventDefault(); anim.holding = true; }
+function holdStart(e){ if (S.phase !== "seed" || anim.hatching > 0) return; e.preventDefault(); if (!booted) actedBeforeLoad = true; anim.holding = true; }
 function holdEnd(){ if (anim.holding){ anim.holding = false; renderSeed(); scheduleSave(); } }
 $("eHold").addEventListener("pointerdown", holdStart);
 ["pointerup","pointerleave","pointercancel"].forEach(ev => { $("eHold").addEventListener(ev, holdEnd); cv.addEventListener(ev, holdEnd); });
 window.addEventListener("blur", holdEnd);
-$("eTalk").addEventListener("click", () => { $("whisperBox").hidden = false; $("imagineBox").hidden = true; $("whisperIn").focus(); });
-$("eImagine").addEventListener("click", () => { $("imagineBox").hidden = false; $("whisperBox").hidden = true; $("imagineIn").value = S.egg.desc; $("nameIn").value = S.egg.wantName; $("callIn").value = S.egg.callMe; $("imagineIn").focus(); });
-function sendWhisper(){
+$("eTalk").addEventListener("click", () => { $("whisperBox").hidden = false; $("imagineBox").hidden = true; $("whisperBox").scrollIntoView({ behavior: "smooth", block: "center" }); $("whisperIn").focus({ preventScroll: true }); });
+$("eImagine").addEventListener("click", () => { $("imagineBox").hidden = false; $("whisperBox").hidden = true; $("imagineBox").scrollIntoView({ behavior: "smooth", block: "center" }); $("imagineIn").value = S.egg.desc; $("nameIn").value = S.egg.wantName; $("callIn").value = S.egg.callMe; $("imagineIn").focus(); });
+const COLOR_WORDS = [["ocean","#4fa8e8"],["sea","#4fa8e8"],["sky","#86cdf2"],["blue","#6fa8ff"],["night","#6b6fd8"],["star","#d9d2ff"],["moon","#e8e4c8"],["sun","#ffd27a"],["fire","#ff8a4c"],["red","#ff7b7b"],["green","#7fe3a2"],["forest","#5fb87a"],["tree","#6fc28a"],["flower","#ff9fc8"],["pink","#ffb0c8"],["purple","#b89bff"],["gold","#ffd27a"],["snow","#eef4ff"],["rain","#8fb4d8"],["music","#c79bff"],["basketball","#ff9c45"],["orange","#ffb36b"],["love","#ff8fb0"],["safe","#9fe0c0"]];
+const TRAIT_WORDS = [["brave","brave"],["safe","protective"],["protect","protective"],["love","loving"],["play","playful"],["fun","playful"],["learn","curious"],["why","curious"],["quiet","gentle"],["sleep","calm"],["run","quick"],["build","inventive"],["music","musical"],["laugh","funny"],["friend","loyal"]];
+function localImprint(text){
+  const d = text.toLowerCase();
+  const c = COLOR_WORDS.find(([w]) => new RegExp("\\b" + w).test(d));
+  const t = TRAIT_WORDS.find(([w]) => new RegExp("\\b" + w).test(d));
+  const r = c ? `${/^[aeiou]/.test(c[0]) ? "An" : "A"} ${c[0]}-colored shimmer runs across it.` : t ? `It goes still, as if it's holding the word close.` : `It turns slowly toward your voice.`;
+  return { reaction: r, color: c ? c[1] : null, trait: t ? t[1] : null };
+}
+async function sendWhisper(){
   const v = $("whisperIn").value.trim(); if (!v) return;
-  S.egg.whispers.push(v.slice(0, 200)); if (S.egg.whispers.length > 8) S.egg.whispers.shift();
-  $("whisperIn").value = ""; anim.warm = Math.min(1, anim.warm + 0.4);
-  say(["*the Seed wobbles, listening*","*it warms a little*","*something inside it turns toward your voice*"][S.egg.whispers.length % 3], 2500);
+  if (!booted) actedBeforeLoad = true;
+  const said = v.slice(0, 200);
+  S.egg.whispers.push(said); if (S.egg.whispers.length > 8) S.egg.whispers.shift();
+  const imp = { said, reaction: "…listening…", color: null, trait: null, pending: true };
+  S.egg.imprints.push(imp); if (S.egg.imprints.length > 8) S.egg.imprints.shift();
+  $("whisperIn").value = ""; anim.warm = Math.min(1, anim.warm + 0.4); anim.listen = 1.2;
   renderSeed(); scheduleSave();
+  let res = null;
+  if (caps.sample){
+    const before = S.egg.imprints.filter(x => x !== imp && !x.pending).map(x => `- "${x.said}" -> ${x.reaction}`).join("\n");
+    const prompt = [
+      "A soft, grey, shapeless Bitling Seed is forming in its caretaker's hands on Kell Island. Bitlings are plush companions built from nanites, shaped by what their caretaker imagines and says. The Seed can't talk yet; it reacts with its body: warmth, shimmer, ripples, color, little shapes budding.",
+      before ? "What the caretaker said earlier, and how the Seed reacted:\n" + before : "",
+      "The caretaker just said: \"" + said + "\"",
+      "Describe how the Seed reacts to THIS, specifically, in one short present-tense sentence (under 22 words, no quotes, third person, gentle and vivid). If the words suggest a color, give it as 6-digit hex. If they suggest a personality trait it is starting to take on, give one word.",
+      'Reply with ONLY JSON: {"reaction":"...","color":"#rrggbb or null","trait":"one word or null"}'
+    ].filter(Boolean).join("\n\n");
+    try { res = await caps.sample.json(prompt, { modelTier: "quick", cache: false }); } catch(err){ res = null; }
+  }
+  const loc = localImprint(said);
+  imp.reaction = (res && typeof res.reaction === "string" && res.reaction.trim()) ? res.reaction.trim().slice(0, 180) : loc.reaction;
+  imp.color = (res && typeof res.color === "string" && HEX.test(res.color)) ? res.color.toLowerCase() : loc.color;
+  imp.trait = (res && typeof res.trait === "string" && /^[a-zA-Z-]{2,20}$/.test(res.trait.trim())) ? res.trait.trim().toLowerCase() : loc.trait;
+  delete imp.pending;
+  say(imp.reaction, 4500);
+  anim.listen = 1.5;
+  renderSeed(); scheduleSave();
+}
+function seedTint(){
+  const cols = S.egg.imprints.map(x => x.color).filter(Boolean);
+  if (!cols.length) return null;
+  let r=0,g=0,b=0; for (const c of cols){ const n = parseInt(c.slice(1),16); r += (n>>16)&255; g += (n>>8)&255; b += n&255; }
+  const k = cols.length; return "#" + ((1<<24)|(Math.round(r/k)<<16)|(Math.round(g/k)<<8)|Math.round(b/k)).toString(16).slice(1);
 }
 $("whisperSend").addEventListener("click", sendWhisper);
 $("whisperIn").addEventListener("keydown", (e) => { if (e.key === "Enter") sendWhisper(); });
 $("imagineSave").addEventListener("click", () => {
   const d = $("imagineIn").value.trim();
   if (!d){ $("imagineIn").focus(); return; }
+  if (!booted) actedBeforeLoad = true;
   S.egg.desc = d.slice(0, 600); S.egg.wantName = $("nameIn").value.trim().slice(0, 24); S.egg.callMe = $("callIn").value.trim().slice(0, 24);
   say("*the Seed's surface ripples, like it's trying on a shape*", 3000);
   renderSeed(); scheduleSave();
